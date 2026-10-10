@@ -229,7 +229,7 @@ export default function HomeScreen() {
   };
 
   /* ---- responsive helpers ---- */
-  const contentPad = isMobile ? 20 : isTablet ? 36 : 0;
+  const contentPad = isMobile ? (width < 380 ? 14 : 18) : isTablet ? 36 : 0;
 
   const ContentWrapper = ({ children, style }: { children: React.ReactNode; style?: any }) => (
     <View
@@ -239,6 +239,7 @@ export default function HomeScreen() {
           maxWidth: contentMaxWidth,
           alignSelf: "center",
           paddingHorizontal: contentPad,
+          ...(Platform.OS === "web" ? { boxSizing: "border-box" as any } : {}),
         },
         style,
       ]}
@@ -520,7 +521,7 @@ export default function HomeScreen() {
         <View style={s.heroBlob2} />
         <View style={s.heroBlob3} />
 
-        <ContentWrapper style={{ zIndex: 2, alignItems: "center", paddingVertical: isMobile ? 60 : 90 }}>
+        <ContentWrapper style={{ zIndex: 2, alignItems: "center", paddingVertical: isMobile ? 48 : 90 }}>
           {/* Badge */}
           <View style={s.heroBadge}>
             <View style={s.heroBadgeDot} />
@@ -531,7 +532,10 @@ export default function HomeScreen() {
           <Text
             style={[
               s.heroTitle,
-              { fontSize: isMobile ? 38 : isTablet ? 52 : 68, lineHeight: isMobile ? 44 : isTablet ? 60 : 76 },
+              {
+                fontSize: isMobile ? (width < 380 ? 32 : 38) : isTablet ? 52 : 68,
+                lineHeight: isMobile ? (width < 380 ? 38 : 44) : isTablet ? 60 : 76,
+              },
             ]}
           >
             Everything Nalgonda
@@ -539,19 +543,28 @@ export default function HomeScreen() {
           <Text
             style={[
               s.heroTitleAccent,
-              { fontSize: isMobile ? 38 : isTablet ? 52 : 68, lineHeight: isMobile ? 44 : isTablet ? 60 : 76 },
+              {
+                fontSize: isMobile ? (width < 380 ? 32 : 38) : isTablet ? 52 : 68,
+                lineHeight: isMobile ? (width < 380 ? 38 : 44) : isTablet ? 60 : 76,
+              },
             ]}
           >
             In One Place.
           </Text>
 
-          <Text style={s.heroSub}>
+          <Text style={[s.heroSub, isMobile && { fontSize: 15, lineHeight: 24, marginTop: 16 }]}>
             Discover amazing places, local food, hotels, events, businesses and everything happening around Nalgonda — your city, all in one platform.
           </Text>
 
           {/* Search */}
-          <View style={[s.searchBox, { width: isMobile ? "100%" : isTablet ? "85%" : 680 }]}>
-            <Text style={s.searchIcon}>⌕</Text>
+          <View
+            style={[
+              s.searchBox,
+              isMobile && s.searchBoxMobile,
+              { width: "100%", maxWidth: isMobile ? "100%" : isTablet ? "85%" : 680 },
+            ]}
+          >
+            <Text style={[s.searchIcon, isMobile && s.searchIconMobile]}>⌕</Text>
             <TextInput
               ref={searchInputRef}
               value={searchText}
@@ -559,13 +572,21 @@ export default function HomeScreen() {
               onSubmitEditing={handleSearch}
               placeholder="Search places, food, hotels, services..."
               placeholderTextColor="#94A3B8"
-              style={s.searchInput as any}
+              style={[s.searchInput, isMobile && s.searchInputMobile] as any}
+              returnKeyType="search"
+              accessibilityLabel="Search NalgondaOne"
             />
             <Pressable
-              style={({ pressed }) => [s.searchBtn, { opacity: pressed ? 0.85 : 1 }]}
+              style={({ pressed }) => [
+                s.searchBtn,
+                isMobile && s.searchBtnMobile,
+                { opacity: pressed ? 0.85 : 1 },
+              ]}
               onPress={handleSearch}
+              accessibilityRole="button"
+              accessibilityLabel="Search"
             >
-              <Text style={s.searchBtnText}>Search</Text>
+              <Text style={[s.searchBtnText, isMobile && s.searchBtnTextMobile]}>Search</Text>
             </Pressable>
           </View>
 
@@ -1324,20 +1345,45 @@ const s = StyleSheet.create({
     alignItems: "center",
     paddingLeft: 18,
     paddingRight: 6,
-    ...(Platform.OS === "web" ? { boxShadow: "0 12px 30px rgba(37, 99, 235, 0.08)" } : {}),
+    width: "100%",
+    maxWidth: 680,
+    ...(Platform.OS === "web"
+      ? {
+          boxShadow: "0 12px 30px rgba(37, 99, 235, 0.08)",
+          boxSizing: "border-box" as any,
+        }
+      : {}),
+  },
+  searchBoxMobile: {
+    height: 52,
+    marginTop: 22,
+    borderRadius: 14,
+    paddingLeft: 12,
+    paddingRight: 4,
   },
   searchIcon: {
     fontSize: 26,
     color: SLATE_500,
     marginRight: 8,
+    flexShrink: 0,
+  },
+  searchIconMobile: {
+    fontSize: 20,
+    marginRight: 6,
   },
   searchInput: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
+    flexGrow: 1,
     height: "100%",
     fontSize: 15,
     color: SLATE_900,
     outlineStyle: "none" as any,
     ...WEB_FONT,
+  },
+  searchInputMobile: {
+    fontSize: 14,
   },
   searchBtn: {
     height: 48,
@@ -1346,12 +1392,21 @@ const s = StyleSheet.create({
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
+  },
+  searchBtnMobile: {
+    height: 42,
+    paddingHorizontal: 15,
+    borderRadius: 11,
   },
   searchBtnText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
     ...WEB_FONT,
+  },
+  searchBtnTextMobile: {
+    fontSize: 13,
   },
 
   /* quick tags */
@@ -1360,8 +1415,9 @@ const s = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
     alignItems: "center",
+    maxWidth: "100%",
   },
   quickLabel: {
     color: SLATE_500,

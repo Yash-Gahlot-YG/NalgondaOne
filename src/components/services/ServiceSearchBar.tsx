@@ -71,17 +71,25 @@ const s = StyleSheet.create({
     alignItems: "center",
     paddingLeft: 16,
     paddingRight: 5,
+    width: "100%",
     ...(Platform.OS === "web"
-      ? { boxShadow: "0 4px 16px rgba(37, 99, 235, 0.06)" }
+      ? {
+          boxShadow: "0 4px 16px rgba(37, 99, 235, 0.06)",
+          boxSizing: "border-box" as any,
+        }
       : {}),
   },
   icon: {
     fontSize: 22,
     color: SLATE_400,
     marginRight: 8,
+    flexShrink: 0,
   },
   input: {
     flex: 1,
+    minWidth: 0,
+    flexShrink: 1,
+    flexGrow: 1,
     height: "100%",
     fontSize: 14,
     color: SLATE_900,
@@ -96,6 +104,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
+    flexShrink: 0,
   },
   clearText: {
     fontSize: 12,
@@ -104,11 +113,12 @@ const s = StyleSheet.create({
   },
   searchBtn: {
     height: 44,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     backgroundColor: BRAND,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
   },
   searchBtnText: {
     color: WHITE,

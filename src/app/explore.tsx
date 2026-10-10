@@ -193,10 +193,11 @@ const s = StyleSheet.create({
   searchBox: {
     height: 56, marginTop: 28, backgroundColor: "#FFFFFF", borderRadius: 16,
     borderWidth: 1, borderColor: "#DCE6F2", flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 18,
+    paddingHorizontal: 16, maxWidth: 680,
+    ...(Platform.OS === "web" ? { boxSizing: "border-box" as any } : {}),
   },
-  searchIcon: { fontSize: 24, color: SLATE_500, marginRight: 8 },
-  searchInput: { flex: 1, height: "100%", fontSize: 15, color: SLATE_900, outlineStyle: "none" as any, ...WEB_FONT },
+  searchIcon: { fontSize: 24, color: SLATE_500, marginRight: 8, flexShrink: 0 },
+  searchInput: { flex: 1, minWidth: 0, flexShrink: 1, height: "100%", fontSize: 15, color: SLATE_900, outlineStyle: "none" as any, ...WEB_FONT },
 
   /* sections */
   section: { paddingTop: 40, paddingBottom: 20 },
