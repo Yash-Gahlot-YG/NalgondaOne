@@ -11,6 +11,7 @@ import { getStoredUserToken } from "@/services/authApi";
 export interface CreateBusinessRequest {
   businessName: string;
   category: string;
+  vertical?: string;
   description?: string;
   services?: string[];
   logo?: string | null;
@@ -39,6 +40,7 @@ export interface BusinessDocument {
   _id: string;
   businessName: string;
   category: string;
+  vertical?: string;
   description?: string;
   services: string[];
   logo: string;
@@ -53,6 +55,12 @@ export interface BusinessDocument {
     coordinates: [number, number];
   };
   phone: string;
+  doctorName?: string;
+  facilityType?: "doctor_clinic" | "private_clinic" | "government_hospital" | "diagnostic_center" | "pharmacy" | "other";
+  qualifications?: string;
+  consultationTimings?: string;
+  consultationSetting?: string;
+  sourceUrl?: string;
   whatsapp?: string;
   email?: string;
   website?: string;

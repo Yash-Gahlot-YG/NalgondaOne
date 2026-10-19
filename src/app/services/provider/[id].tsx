@@ -35,6 +35,8 @@ import {
   getProviderById,
   isMockContact,
   getCategoryBySlug,
+  normalizeCategorySlug,
+  isHealthcareCategory,
   type ServiceProvider,
 } from "@/data/services";
 import {
@@ -56,7 +58,8 @@ import ErrorState from "@/components/services/ErrorState";
  * so that existing components (ProviderHeader, Gallery, etc.) work unchanged.
  */
 function businessDocToProvider(biz: BusinessDocument): ServiceProvider {
-  const cat = getCategoryBySlug(biz.category);
+  const normalizedSlug = normalizeCategorySlug(biz.category);
+  const cat = getCategoryBySlug(normalizedSlug) || getCategoryBySlug(biz.category);
 
   // Build images array: prefer coverPhoto, then logo, then businessPhotos
   const images: string[] = [];
@@ -101,7 +104,7 @@ function businessDocToProvider(biz: BusinessDocument): ServiceProvider {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, ""),
-    category: biz.category,
+    category: normalizedSlug || biz.category,
     categoryTitle: cat?.title || biz.category,
     description: biz.description || "",
     phone: biz.phone,
@@ -232,6 +235,42 @@ export default function ProviderDetailScreen() {
           description="This provider may have been removed or the link is incorrect."
           retryLabel="← Back to Services"
           onRetry={() => router.push("/services")}
+        />
+      </View>
+    );
+  }
+
+  /* ---- Healthcare listings belong in the /healthcare directory ---- */
+  const isHealthcare =
+    isHealthcareCategory(provider.category) ||
+    isHealthcareCategory(provider.categoryTitle);
+
+  if (isHealthcare) {
+    return (
+      <View style={s.page}>
+        <View style={s.header}>
+          <View style={s.headerInner}>
+            <Pressable
+              onPress={() => router.push("/healthcare")}
+              style={({ pressed }) => [
+                s.backBtn,
+                { opacity: pressed ? 0.7 : 1 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Go to Healthcare"
+            >
+              <Text style={s.backArrow}>←</Text>
+            </Pressable>
+            <Text style={s.headerTitle}>Healthcare Facility</Text>
+            <View style={{ width: 40 }} />
+          </View>
+        </View>
+        <ErrorState
+          icon="🏥"
+          title="Healthcare Provider"
+          description={`${provider.name} is a verified medical/healthcare listing and is available in the NalgondaOne Healthcare directory.`}
+          retryLabel="Open Healthcare Directory →"
+          onRetry={() => router.push("/healthcare")}
         />
       </View>
     );

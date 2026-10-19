@@ -28,6 +28,7 @@ import {
   fetchApprovedProviders,
   nalgondaLocations,
   withCalculatedDistance,
+  normalizeCategorySlug,
   type ServiceProvider,
 } from "@/data/services";
 import ServiceSearchBar from "@/components/services/ServiceSearchBar";
@@ -139,7 +140,7 @@ export default function CategoryScreen() {
 
     // Merge approved providers that belong to this category
     const approvedForCategory = approvedProviders.filter(
-      (p) => p.category === slug
+      (p) => p.category === slug || normalizeCategorySlug(p.category) === slug
     );
     if (approvedForCategory.length > 0) {
       const merged = [...list, ...approvedForCategory];

@@ -775,6 +775,85 @@ export function resolveImage(key: string): any | null {
 }
 
 /* ---------------------------------------------------------------- */
+/* VERTICAL & CATEGORY CLASSIFICATION                               */
+/* ---------------------------------------------------------------- */
+
+/** Healthcare categories recognized by the platform */
+export const HEALTHCARE_CATEGORIES = [
+  "General Physician",
+  "Cardiologist",
+  "Dermatologist",
+  "Pediatrician",
+  "Dentist",
+  "Orthopedic",
+  "Gynecologist",
+  "ENT",
+  "Ophthalmologist",
+  "Hospital",
+  "Clinic",
+  "Diagnostic Center",
+  "Pharmacy",
+] as const;
+
+const HEALTHCARE_CATEGORY_SET = new Set(
+  HEALTHCARE_CATEGORIES.map((c) => c.toLowerCase().trim())
+);
+
+/** Set of valid service category slugs */
+export const SERVICE_CATEGORY_SLUGS = new Set(
+  allCategories.map((c) => c.slug.toLowerCase().trim())
+);
+
+/** Set of valid service category titles */
+export const SERVICE_CATEGORY_TITLES = new Set(
+  allCategories.map((c) => c.title.toLowerCase().trim())
+);
+
+/** Check if a category belongs to healthcare */
+export function isHealthcareCategory(category?: string | null): boolean {
+  if (!category) return false;
+  return HEALTHCARE_CATEGORY_SET.has(category.toLowerCase().trim());
+}
+
+/** Check if a category belongs to services */
+export function isServiceCategory(category?: string | null): boolean {
+  if (!category) return false;
+  const lower = category.toLowerCase().trim();
+  if (isHealthcareCategory(lower)) return false;
+  return (
+    SERVICE_CATEGORY_SLUGS.has(lower) ||
+    SERVICE_CATEGORY_TITLES.has(lower) ||
+    lower === "other"
+  );
+}
+
+/** Determine if a business document belongs to the services vertical */
+export function isServiceBusiness(biz: {
+  category?: string;
+  vertical?: string;
+}): boolean {
+  if (biz.vertical === "services") return true;
+  if (biz.vertical === "healthcare") return false;
+  // If no explicit vertical is assigned, classify by category allowlist
+  return !isHealthcareCategory(biz.category);
+}
+
+/** Normalize category slug from either a slug, title, or raw string */
+export function normalizeCategorySlug(categoryOrSlug?: string | null): string {
+  if (!categoryOrSlug) return "";
+  const trimmed = categoryOrSlug.trim();
+  const lower = trimmed.toLowerCase();
+
+  const foundBySlug = allCategories.find((c) => c.slug.toLowerCase() === lower);
+  if (foundBySlug) return foundBySlug.slug;
+
+  const foundByTitle = allCategories.find((c) => c.title.toLowerCase() === lower);
+  if (foundByTitle) return foundByTitle.slug;
+
+  return lower.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+/* ---------------------------------------------------------------- */
 /* APPROVED BUSINESSES FROM API                                       */
 /* ---------------------------------------------------------------- */
 
@@ -783,7 +862,8 @@ export function resolveImage(key: string): any | null {
  * compatible with the existing UI components.
  */
 function mapBusinessToProvider(biz: BusinessDocument): ServiceProvider {
-  const cat = getCategoryBySlug(biz.category);
+  const normalizedSlug = normalizeCategorySlug(biz.category);
+  const cat = getCategoryBySlug(normalizedSlug) || getCategoryBySlug(biz.category);
 
   // Build the images array: prefer coverPhoto, then logo, then businessPhotos.
   // These are HTTPS Cloudinary URLs — resolveImage() already handles them.
@@ -821,7 +901,7 @@ function mapBusinessToProvider(biz: BusinessDocument): ServiceProvider {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, ""),
-    category: biz.category,
+    category: normalizedSlug || biz.category,
     categoryTitle: cat?.title || biz.category,
     description: biz.description || "",
     phone: biz.phone,
@@ -864,12 +944,12 @@ export interface FetchApprovedResult {
 
 /**
  * Fetch approved + verified businesses from the backend API.
- * Returns a result object so callers can distinguish a successful-but-empty
- * response from an API failure — critical for production error handling.
+ * Requests the 'services' vertical and applies frontend category allowlist
+ * filtering so healthcare-only listings never appear in the services directory.
  */
 export async function fetchApprovedProviders(): Promise<FetchApprovedResult> {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/businesses/approved`, {
+    const res = await fetch(`${API_BASE_URL}/api/businesses/approved?vertical=services`, {
       headers: { Accept: "application/json" },
     });
     if (!res.ok) {
@@ -887,9 +967,15 @@ export async function fetchApprovedProviders(): Promise<FetchApprovedResult> {
         error: "Unexpected response format from server",
       };
     }
+
+    // Filter to services vertical only (excludes healthcare records even if backend returned them)
+    const serviceListings = json.data.filter((biz: BusinessDocument) =>
+      isServiceBusiness(biz)
+    );
+
     return {
       success: true,
-      data: json.data.map((biz: BusinessDocument) => mapBusinessToProvider(biz)),
+      data: serviceListings.map((biz: BusinessDocument) => mapBusinessToProvider(biz)),
     };
   } catch (err) {
     // Network error — server unreachable, no internet, etc.
@@ -1118,8 +1204,13 @@ export function getAllProviders(
   locationName?: string,
   approvedProviders: ServiceProvider[] = [],
 ): ServiceProvider[] {
+  // Ensure healthcare providers are excluded
+  const filteredApproved = approvedProviders.filter(
+    (p) => !isHealthcareCategory(p.category) && !isHealthcareCategory(p.categoryTitle)
+  );
+
   // Real approved businesses first, then mock/demo providers, de-duplicate by id
-  const merged = [...approvedProviders, ...mockProviders];
+  const merged = [...filteredApproved, ...mockProviders];
   const unique = Array.from(new Map(merged.map((p) => [p.id, p])).values());
 
   return unique;
@@ -1136,8 +1227,13 @@ export function getNearbyProviders(
   approvedProviders: ServiceProvider[] = [],
   radiusKm: number = DEFAULT_NEARBY_RADIUS_KM,
 ): ServiceProvider[] {
+  // Ensure healthcare providers are excluded
+  const filteredApproved = approvedProviders.filter(
+    (p) => !isHealthcareCategory(p.category) && !isHealthcareCategory(p.categoryTitle)
+  );
+
   // Real approved businesses first, then mock/demo providers, de-duplicate by id
-  const merged = [...approvedProviders, ...mockProviders];
+  const merged = [...filteredApproved, ...mockProviders];
   const unique = Array.from(new Map(merged.map((p) => [p.id, p])).values());
 
   const withDistances = unique
@@ -1237,8 +1333,13 @@ export function searchServices(
       c.description.toLowerCase().includes(q)
   );
 
+  // Filter approvedProviders to services only
+  const filteredApproved = approvedProviders.filter(
+    (p) => !isHealthcareCategory(p.category) && !isHealthcareCategory(p.categoryTitle)
+  );
+
   // Search in mock + approved providers
-  const allProvs = [...mockProviders, ...approvedProviders];
+  const allProvs = [...mockProviders, ...filteredApproved];
   let matchingProviders = allProvs.filter(
     (p) =>
       p.name.toLowerCase().includes(q) ||
