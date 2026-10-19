@@ -386,6 +386,7 @@ export default function HealthcareScreen() {
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const mountedRef = useRef(true);
+  const inputRef = useRef<TextInput>(null);
 
   /* Nearby Discovery & Geolocation state */
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -409,55 +410,63 @@ export default function HealthcareScreen() {
   const contentPad = isMobile ? 16 : isTablet ? 36 : 0;
 
   /* ---- Data fetching ---- */
-  const loadListings = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    setErrorMessage("");
-    try {
-      const result = await fetchHealthcareListings({
-        category: activeCategory !== "All" ? activeCategory : undefined,
-        search: searchText.trim() || undefined,
-      });
-      if (!mountedRef.current) return;
-      if (result.success) {
-        setRawListings(result.data);
-        setError(false);
-      } else {
+  const loadListings = useCallback(
+    async (queryText?: string) => {
+      setLoading(true);
+      setError(false);
+      setErrorMessage("");
+      try {
+        const query = typeof queryText === "string" ? queryText : searchText;
+        const result = await fetchHealthcareListings({
+          category: activeCategory !== "All" ? activeCategory : undefined,
+          search: query.trim() || undefined,
+        });
+        if (!mountedRef.current) return;
+        if (result.success) {
+          setRawListings(result.data);
+          setError(false);
+        } else {
+          setRawListings([]);
+          setError(true);
+          setErrorMessage(result.message);
+        }
+      } catch (err: any) {
+        if (!mountedRef.current) return;
         setRawListings([]);
         setError(true);
-        setErrorMessage(result.message);
+        setErrorMessage(
+          typeof __DEV__ !== "undefined" && __DEV__
+            ? `Error: ${err?.message || "Failed to load listings"}`
+            : "We couldn't reach the server. Please check your connection and try again."
+        );
+      } finally {
+        if (mountedRef.current) setLoading(false);
       }
-    } catch (err: any) {
-      if (!mountedRef.current) return;
-      setRawListings([]);
-      setError(true);
-      setErrorMessage(
-        typeof __DEV__ !== "undefined" && __DEV__
-          ? `Error: ${err?.message || "Failed to load listings"}`
-          : "We couldn't reach the server. Please check your connection and try again."
-      );
-    } finally {
-      if (mountedRef.current) setLoading(false);
-    }
-  }, [activeCategory, searchText]);
+    },
+    [activeCategory]
+  );
 
   useEffect(() => {
     mountedRef.current = true;
-    loadListings();
+    loadListings(searchText);
     return () => {
       mountedRef.current = false;
     };
-  }, [loadListings]);
+  }, [activeCategory]);
 
-  /* ---- Search debounce ---- */
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* ---- Search text & submit handlers ---- */
   const handleSearchChange = useCallback((text: string) => {
     setSearchText(text);
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => {
-      // re-evaluates
-    }, 300);
   }, []);
+
+  const handleSearchSubmit = useCallback(() => {
+    loadListings(searchText);
+  }, [loadListings, searchText]);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchText("");
+    loadListings("");
+  }, [loadListings]);
 
   /* ---- Device Geolocation Handler ---- */
   const handleRequestDeviceLocation = () => {
@@ -523,6 +532,31 @@ export default function HealthcareScreen() {
       };
     });
 
+    // 0. Search Text Filter (instant client-side filtering across all fields)
+    if (searchText.trim()) {
+      const q = searchText.trim().toLowerCase();
+      result = result.filter(({ item }) => {
+        const name = (item.businessName || "").toLowerCase();
+        const doc = (item.doctorName || "").toLowerCase();
+        const qual = (item.qualifications || "").toLowerCase();
+        const cat = (item.category || "").toLowerCase();
+        const desc = (item.description || "").toLowerCase();
+        const addr = (item.address || "").toLowerCase();
+        const loc = (item.locality || "").toLowerCase();
+        const svcs = (item.services || []).join(" ").toLowerCase();
+        return (
+          name.includes(q) ||
+          doc.includes(q) ||
+          qual.includes(q) ||
+          cat.includes(q) ||
+          desc.includes(q) ||
+          addr.includes(q) ||
+          loc.includes(q) ||
+          svcs.includes(q)
+        );
+      });
+    }
+
     // 1. Facility Type Filter
     if (selectedFacilityType !== "all") {
       result = result.filter(({ item }) => item.facilityType === selectedFacilityType);
@@ -566,6 +600,7 @@ export default function HealthcareScreen() {
     return result;
   }, [
     rawListings,
+    searchText,
     userCoords,
     selectedFacilityType,
     selectedLocality,
@@ -680,9 +715,9 @@ export default function HealthcareScreen() {
         {/* HERO SECTION                                                  */}
         {/* ============================================================ */}
         <View style={s.heroSection}>
-          <View style={s.heroBlob1} />
-          <View style={s.heroBlob2} />
-          <View style={s.heroBlob3} />
+          <View pointerEvents="none" style={s.heroBlob1} />
+          <View pointerEvents="none" style={s.heroBlob2} />
+          <View pointerEvents="none" style={s.heroBlob3} />
 
           <ContentWrap style={{ zIndex: 2, paddingTop: 32, paddingBottom: 28 }}>
             <Text style={s.heroKicker}>DOCTORS & HEALTHCARE DIRECTORY</Text>
@@ -695,15 +730,32 @@ export default function HealthcareScreen() {
             </Text>
 
             {/* Search Bar */}
-            <View style={s.searchContainer}>
-              <Text style={s.searchIcon} accessibilityElementsHidden>⌕</Text>
+            <View style={[s.searchContainer, isMobile && s.searchContainerMobile]}>
+              <Pressable
+                onPress={() => inputRef.current?.focus()}
+                style={s.searchIconWrap}
+                accessibilityRole="button"
+                accessibilityLabel="Focus search field"
+              >
+                <Text style={[s.searchIcon, isMobile && s.searchIconMobile]} accessibilityElementsHidden>
+                  🔍
+                </Text>
+              </Pressable>
               <TextInput
+                ref={inputRef}
                 value={searchText}
                 onChangeText={handleSearchChange}
-                onSubmitEditing={loadListings}
-                placeholder="Search by doctor name, specialty, clinic or locality..."
+                onSubmitEditing={handleSearchSubmit}
+                placeholder={
+                  isMobile
+                    ? "Search doctors, clinics, specialties..."
+                    : "Search by doctor name, specialty, clinic or locality..."
+                }
                 placeholderTextColor={SLATE_400}
-                style={s.searchInput as any}
+                style={[
+                  s.searchInput,
+                  isMobile && s.searchInputMobile,
+                ] as any}
                 returnKeyType="search"
                 accessibilityLabel="Search doctors and clinics"
                 autoCapitalize="none"
@@ -711,9 +763,13 @@ export default function HealthcareScreen() {
               />
               {searchText.length > 0 && (
                 <Pressable
-                  onPress={() => setSearchText("")}
-                  style={({ pressed }) => [s.clearBtn, { opacity: pressed ? 0.6 : 1 }]}
-                  hitSlop={8}
+                  onPress={handleClearSearch}
+                  style={({ pressed }) => [
+                    s.clearBtn,
+                    isMobile && s.clearBtnMobile,
+                    { opacity: pressed ? 0.6 : 1 },
+                  ]}
+                  hitSlop={10}
                   accessibilityRole="button"
                   accessibilityLabel="Clear search"
                 >
@@ -721,12 +777,16 @@ export default function HealthcareScreen() {
                 </Pressable>
               )}
               <Pressable
-                onPress={loadListings}
-                style={({ pressed }) => [s.searchBtn, { opacity: pressed ? 0.85 : 1 }]}
+                onPress={handleSearchSubmit}
+                style={({ pressed }) => [
+                  s.searchBtn,
+                  isMobile && s.searchBtnMobile,
+                  { opacity: pressed ? 0.85 : 1 },
+                ]}
                 accessibilityRole="button"
                 accessibilityLabel="Submit search"
               >
-                <Text style={s.searchBtnText}>Search</Text>
+                <Text style={[s.searchBtnText, isMobile && s.searchBtnTextMobile]}>Search</Text>
               </Pressable>
             </View>
           </ContentWrap>
@@ -1017,6 +1077,7 @@ export default function HealthcareScreen() {
                 setSelectedLocality("All");
                 setSelectedPincode("All");
                 setDistanceRadius("all");
+                loadListings("");
               }}
             />
           )}
@@ -1366,6 +1427,7 @@ const s = StyleSheet.create({
     opacity: 0.25,
     top: -170,
     right: -120,
+    ...(Platform.OS === "web" ? { pointerEvents: "none" as any } : {}),
   },
   heroBlob2: {
     position: "absolute",
@@ -1376,6 +1438,7 @@ const s = StyleSheet.create({
     opacity: 0.15,
     bottom: -110,
     left: -90,
+    ...(Platform.OS === "web" ? { pointerEvents: "none" as any } : {}),
   },
   heroBlob3: {
     position: "absolute",
@@ -1386,6 +1449,7 @@ const s = StyleSheet.create({
     opacity: 0.12,
     top: 20,
     left: "50%" as any,
+    ...(Platform.OS === "web" ? { pointerEvents: "none" as any } : {}),
   },
   heroKicker: {
     fontSize: 11,
@@ -1412,28 +1476,43 @@ const s = StyleSheet.create({
   /* ---- search ---- */
   searchContainer: {
     marginTop: 20,
-    height: 56,
+    height: 60,
     backgroundColor: WHITE,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: SLATE_200,
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
     flexDirection: "row",
     alignItems: "center",
     paddingLeft: 16,
-    paddingRight: 5,
+    paddingRight: 6,
     width: "100%",
     ...(Platform.OS === "web"
       ? {
-          boxShadow: "0 4px 16px rgba(37, 99, 235, 0.06)",
+          boxShadow: "0 4px 20px rgba(37, 99, 235, 0.08)",
           boxSizing: "border-box" as any,
         }
       : {}),
   },
-  searchIcon: {
-    fontSize: 22,
-    color: SLATE_400,
+  searchContainerMobile: {
+    height: 54,
+    borderRadius: 14,
+    paddingLeft: 12,
+    paddingRight: 5,
+    marginTop: 16,
+  },
+  searchIconWrap: {
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 8,
     flexShrink: 0,
+  },
+  searchIcon: {
+    fontSize: 18,
+    color: SLATE_400,
+  },
+  searchIconMobile: {
+    fontSize: 16,
+    marginRight: 2,
   },
   searchInput: {
     flex: 1,
@@ -1441,11 +1520,24 @@ const s = StyleSheet.create({
     flexShrink: 1,
     flexGrow: 1,
     height: "100%",
-    fontSize: 14,
+    fontSize: 15,
     color: SLATE_900,
-    ...(Platform.OS === "web" ? { outlineStyle: "none" as any } : {}),
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    paddingVertical: 0,
+    paddingHorizontal: 4,
+    ...(Platform.OS === "web"
+      ? {
+          outlineStyle: "none" as any,
+          boxShadow: "none" as any,
+        }
+      : {}),
     ...WEB_FONT,
   } as any,
+  searchInputMobile: {
+    fontSize: 14,
+    paddingHorizontal: 2,
+  },
   clearBtn: {
     width: 28,
     height: 28,
@@ -1456,25 +1548,39 @@ const s = StyleSheet.create({
     marginRight: 8,
     flexShrink: 0,
   },
+  clearBtnMobile: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    marginRight: 6,
+  },
   clearText: {
     fontSize: 12,
     color: SLATE_400,
     fontWeight: "700",
   },
   searchBtn: {
-    height: 44,
-    paddingHorizontal: 18,
+    height: 48,
+    paddingHorizontal: 22,
     backgroundColor: BRAND,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     flexShrink: 0,
   },
+  searchBtnMobile: {
+    height: 44,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
   searchBtnText: {
     color: WHITE,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "800",
     ...WEB_FONT,
+  },
+  searchBtnTextMobile: {
+    fontSize: 13,
   },
 
   /* ---- nearby discovery panel ---- */
