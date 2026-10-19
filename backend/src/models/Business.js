@@ -14,6 +14,23 @@ const businessSchema = new mongoose.Schema(
             trim: true,
         },
 
+        vertical: {
+            type: String,
+            enum: [
+                "services",
+                "healthcare",
+                "places",
+                "food",
+                "hotels",
+                "shopping",
+                "events",
+                "experiences",
+                "other",
+            ],
+            default: "services",
+            index: true,
+        },
+
         description: {
             type: String,
             trim: true,
@@ -76,8 +93,51 @@ const businessSchema = new mongoose.Schema(
 
         phone: {
             type: String,
-            required: true,
             trim: true,
+            default: "",
+        },
+
+        doctorName: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
+        facilityType: {
+            type: String,
+            enum: [
+                "doctor_clinic",
+                "private_clinic",
+                "government_hospital",
+                "diagnostic_center",
+                "pharmacy",
+                "other",
+            ],
+            default: "doctor_clinic",
+        },
+
+        qualifications: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
+        consultationTimings: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
+        consultationSetting: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
+        sourceUrl: {
+            type: String,
+            trim: true,
+            default: "",
         },
 
         whatsapp: {

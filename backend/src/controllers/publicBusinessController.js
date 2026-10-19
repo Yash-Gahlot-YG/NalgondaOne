@@ -1,17 +1,36 @@
 const mongoose = require("mongoose");
 const Business = require("../models/Business");
+const { HEALTHCARE_CATEGORIES } = require("./healthcareController");
 
 /**
  * GET /api/businesses/approved
  * Returns only approved & verified businesses for public listing.
+ * Supports optional ?category= and ?vertical= (e.g. "services", "healthcare")
  */
 const getApprovedBusinesses = async (req, res) => {
     try {
-        const { category } = req.query;
+        const { category, vertical } = req.query;
         const filter = { status: "approved", verified: true };
 
         if (category) {
             filter.category = category;
+        }
+
+        if (vertical === "services") {
+            // Backward-compatible: matches explicit 'services' vertical or legacy docs without
+            // healthcare categories
+            filter.$and = [
+                { vertical: { $ne: "healthcare" } },
+                { category: { $nin: HEALTHCARE_CATEGORIES } },
+            ];
+        } else if (vertical === "healthcare") {
+            // Matches explicit 'healthcare' vertical or documents with healthcare categories
+            filter.$or = [
+                { vertical: "healthcare" },
+                { category: { $in: HEALTHCARE_CATEGORIES } },
+            ];
+        } else if (vertical) {
+            filter.vertical = vertical;
         }
 
         const businesses = await Business.find(filter)

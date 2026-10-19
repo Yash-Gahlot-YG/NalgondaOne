@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Business = require("../models/Business");
 const User = require("../models/User");
+const { HEALTHCARE_CATEGORIES } = require("./healthcareController");
 
 /**
  * Returns true if the string is a remote HTTPS/HTTP URL.
@@ -20,6 +21,14 @@ function isRemoteUrl(str) {
 const createBusiness = async (req, res) => {
     try {
         const data = { ...req.body };
+
+        // Determine vertical if not explicitly specified
+        if (!data.vertical) {
+            const isHealthcare = HEALTHCARE_CATEGORIES.some(
+                (c) => c.toLowerCase() === (data.category || "").trim().toLowerCase()
+            );
+            data.vertical = isHealthcare ? "healthcare" : "services";
+        }
 
         // Sanitize image fields — only store remote (cloud-hosted) URLs.
         // Local preview URIs (blob:, file://, etc.) are stripped so

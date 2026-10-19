@@ -9,6 +9,7 @@ const businessRoutes = require("./routes/businessRoutes");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
+const healthcareRoutes = require("./routes/healthcareRoutes");
 
 const app = express();
 
@@ -115,6 +116,8 @@ app.use("/api/businesses", (req, res, next) => {
 app.use("/api/businesses", businessRoutes);
 
 app.use("/api/admin", adminRoutes);
+
+app.use("/api/healthcare", healthcareRoutes);
 
 app.use("/api/uploads", uploadLimiter);
 app.use("/api/uploads", uploadRoutes);
