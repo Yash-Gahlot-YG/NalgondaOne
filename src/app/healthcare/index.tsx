@@ -738,10 +738,14 @@ export default function HealthcareScreen() {
             <View style={[s.searchContainer, isMobile && s.searchContainerMobile]}>
               <Pressable
                 key="search-icon"
-                onPress={() => inputRef.current?.focus()}
-                style={s.searchIconWrap}
+                onPress={handleSearchSubmit}
+                style={({ pressed }) => [
+                  s.searchIconWrap,
+                  { opacity: pressed ? 0.5 : 1 },
+                ]}
+                hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Focus search field"
+                accessibilityLabel="Submit search"
               >
                 <Text style={[s.searchIcon, isMobile && s.searchIconMobile]} accessibilityElementsHidden>
                   🔍
@@ -784,19 +788,6 @@ export default function HealthcareScreen() {
                   <Text style={s.clearText}>✕</Text>
                 </Pressable>
               )}
-              <Pressable
-                key="search-submit"
-                onPress={handleSearchSubmit}
-                style={({ pressed }) => [
-                  s.searchBtn,
-                  isMobile && s.searchBtnMobile,
-                  { opacity: pressed ? 0.85 : 1 },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Submit search"
-              >
-                <Text style={[s.searchBtnText, isMobile && s.searchBtnTextMobile]}>Search</Text>
-              </Pressable>
             </View>
           </ContentWrap>
         </View>
@@ -807,11 +798,11 @@ export default function HealthcareScreen() {
         <ContentWrap style={{ paddingTop: 20 }}>
           <View style={s.discoveryPanel}>
             {/* Top Discovery Action Row: Location Toggle & Facility Type */}
-            <View style={s.discoveryTopRow}>
+            <View style={[s.discoveryTopRow, isMobile && s.discoveryTopRowMobile]}>
               {userCoords ? (
-                <View style={s.activeGpsBadgeWrap}>
+                <View style={[s.activeGpsBadgeWrap, isMobile && s.activeGpsBadgeWrapMobile]}>
                   <View style={s.activeGpsIndicator} />
-                  <Text style={s.activeGpsText}>
+                  <Text style={[s.activeGpsText, isMobile && s.activeGpsTextMobile]} numberOfLines={2}>
                     📍 Location Active ({userCoords.latitude.toFixed(2)}°, {userCoords.longitude.toFixed(2)}°)
                   </Text>
                   <Pressable
@@ -1214,18 +1205,18 @@ export default function HealthcareScreen() {
             onPress={() => setAppointmentModalListing(null)}
           >
             <Pressable
-              style={s.modalCard}
+              style={[s.modalCard, isMobile && s.modalCardMobile]}
               onPress={(e) => e.stopPropagation()}
               accessibilityLabel="Consultation Information Dialog"
             >
               {/* Header */}
-              <View style={s.modalHeader}>
-                <View style={[s.modalIconWrap, { backgroundColor: "#DBEAFE" }]}>
-                  <Text style={s.modalIcon}>📋</Text>
+              <View style={[s.modalHeader, isMobile && s.modalHeaderMobile]}>
+                <View style={[s.modalIconWrap, isMobile && s.modalIconWrapMobile, { backgroundColor: "#DBEAFE" }]}>
+                  <Text style={[s.modalIcon, isMobile && s.modalIconMobile]}>📋</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.modalTitle}>Consultation Details</Text>
-                  <Text style={s.modalSubtitle} numberOfLines={1}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[s.modalTitle, isMobile && s.modalTitleMobile]}>Consultation Details</Text>
+                  <Text style={[s.modalSubtitle, isMobile && s.modalSubtitleMobile]} numberOfLines={2}>
                     {appointmentModalListing.doctorName
                       ? `${appointmentModalListing.doctorName} — ${appointmentModalListing.businessName}`
                       : appointmentModalListing.businessName}
@@ -1233,7 +1224,7 @@ export default function HealthcareScreen() {
                 </View>
                 <Pressable
                   onPress={() => setAppointmentModalListing(null)}
-                  style={s.modalCloseIconBtn}
+                  style={[s.modalCloseIconBtn, isMobile && s.modalCloseIconBtnMobile]}
                   accessibilityRole="button"
                   accessibilityLabel="Close dialog"
                 >
@@ -1241,119 +1232,129 @@ export default function HealthcareScreen() {
                 </Pressable>
               </View>
 
-              {/* Consultation Details Box */}
-              <View style={s.appointmentDetailBox}>
-                {appointmentModalListing.doctorName ? (
-                  <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Doctor:</Text>
-                    <Text style={s.detailValue}>
-                      {appointmentModalListing.doctorName}
-                      {appointmentModalListing.qualifications
-                        ? ` (${appointmentModalListing.qualifications})`
-                        : ""}
-                    </Text>
-                  </View>
-                ) : null}
-                <View style={s.detailRow}>
-                  <Text style={s.detailLabel}>Practice / Facility:</Text>
-                  <Text style={s.detailValue}>{appointmentModalListing.businessName}</Text>
-                </View>
-                <View style={s.detailRow}>
-                  <Text style={s.detailLabel}>Specialty:</Text>
-                  <Text style={s.detailValue}>{appointmentModalListing.category}</Text>
-                </View>
-                {appointmentModalListing.consultationTimings ? (
-                  <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Timings:</Text>
-                    <Text style={s.detailValue}>{appointmentModalListing.consultationTimings}</Text>
-                  </View>
-                ) : null}
-                {appointmentModalListing.consultationSetting ? (
-                  <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Setting:</Text>
-                    <Text style={s.detailValue}>{appointmentModalListing.consultationSetting}</Text>
-                  </View>
-                ) : null}
-                {appointmentModalListing.address ? (
-                  <View style={s.detailRow}>
-                    <Text style={s.detailLabel}>Address:</Text>
-                    <Text style={s.detailValue}>
-                      {appointmentModalListing.address}
-                      {appointmentModalListing.locality ? `, ${appointmentModalListing.locality}` : ""}
-                      {appointmentModalListing.city ? `, ${appointmentModalListing.city}` : ""}
-                      {appointmentModalListing.pincode ? ` - ${appointmentModalListing.pincode}` : ""}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {/* Contact Status Section */}
-              {isPhoneVerified(appointmentModalListing.phone) ? (
-                <View style={s.confirmedContactBox}>
-                  <Text style={s.confirmedContactLabel}>Confirmed Clinic Contact</Text>
-                  <Text style={s.confirmedContactNumber} selectable={true}>
-                    {appointmentModalListing.phone}
-                  </Text>
-                  <View style={s.contactActionRow}>
-                    <Pressable
-                      onPress={handleCopyAppointmentPhone}
-                      style={({ pressed }) => [
-                        s.inlineActionBtn,
-                        appointmentCopied ? s.inlineCopyBtnSuccess : s.inlineCopyBtn,
-                        { opacity: pressed ? 0.85 : 1 },
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Copy verified phone number"
-                    >
-                      <Text style={s.inlineActionText}>
-                        {appointmentCopied ? "✓ Copied!" : "📋 Copy Number"}
+              {/* Scrollable content area for mobile */}
+              <ScrollView
+                style={isMobile ? s.modalScrollArea : undefined}
+                showsVerticalScrollIndicator={true}
+                bounces={false}
+              >
+                {/* Consultation Details Box */}
+                <View style={[s.appointmentDetailBox, isMobile && s.appointmentDetailBoxMobile]}>
+                  {appointmentModalListing.doctorName ? (
+                    <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
+                      <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Doctor:</Text>
+                      <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>
+                        {appointmentModalListing.doctorName}
+                        {appointmentModalListing.qualifications
+                          ? ` (${appointmentModalListing.qualifications})`
+                          : ""}
                       </Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => triggerPhoneDialer(appointmentModalListing.phone!)}
-                      style={({ pressed }) => [
-                        s.inlineActionBtn,
-                        s.inlineCallBtn,
-                        { opacity: pressed ? 0.85 : 1 },
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Call verified number"
-                    >
-                      <Text style={s.inlineCallText}>📞 Call Now</Text>
-                    </Pressable>
+                    </View>
+                  ) : null}
+                  <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
+                    <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Facility:</Text>
+                    <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>{appointmentModalListing.businessName}</Text>
                   </View>
+                  <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
+                    <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Specialty:</Text>
+                    <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>{appointmentModalListing.category}</Text>
+                  </View>
+                  {appointmentModalListing.consultationTimings ? (
+                    <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
+                      <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Timings:</Text>
+                      <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>{appointmentModalListing.consultationTimings}</Text>
+                    </View>
+                  ) : null}
+                  {appointmentModalListing.consultationSetting ? (
+                    <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
+                      <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Setting:</Text>
+                      <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>{appointmentModalListing.consultationSetting}</Text>
+                    </View>
+                  ) : null}
+                  {appointmentModalListing.address ? (
+                    <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
+                      <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Address:</Text>
+                      <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>
+                        {appointmentModalListing.address}
+                        {appointmentModalListing.locality ? `, ${appointmentModalListing.locality}` : ""}
+                        {appointmentModalListing.city ? `, ${appointmentModalListing.city}` : ""}
+                        {appointmentModalListing.pincode ? ` - ${appointmentModalListing.pincode}` : ""}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
-              ) : (
-                <View style={s.unverifiedAlertBox}>
-                  <View style={s.unverifiedAlertHeader}>
-                    <Text style={s.unverifiedAlertIcon}>⚠️</Text>
-                    <Text style={s.unverifiedAlertTitle}>Contact details pending confirmation</Text>
+
+                {/* Contact Status Section */}
+                {isPhoneVerified(appointmentModalListing.phone) ? (
+                  <View style={[s.confirmedContactBox, isMobile && s.confirmedContactBoxMobile]}>
+                    <Text style={[s.confirmedContactLabel, isMobile && s.confirmedContactLabelMobile]}>Confirmed Clinic Contact</Text>
+                    <Text style={[s.confirmedContactNumber, isMobile && s.confirmedContactNumberMobile]} selectable={true}>
+                      {appointmentModalListing.phone}
+                    </Text>
+                    <View style={s.contactActionRow}>
+                      <Pressable
+                        onPress={handleCopyAppointmentPhone}
+                        style={({ pressed }) => [
+                          s.inlineActionBtn,
+                          isMobile && s.inlineActionBtnMobile,
+                          appointmentCopied ? s.inlineCopyBtnSuccess : s.inlineCopyBtn,
+                          { opacity: pressed ? 0.85 : 1 },
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Copy verified phone number"
+                      >
+                        <Text style={[s.inlineActionText, isMobile && s.inlineActionTextMobile]}>
+                          {appointmentCopied ? "✓ Copied!" : "📋 Copy"}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => triggerPhoneDialer(appointmentModalListing.phone!)}
+                        style={({ pressed }) => [
+                          s.inlineActionBtn,
+                          isMobile && s.inlineActionBtnMobile,
+                          s.inlineCallBtn,
+                          { opacity: pressed ? 0.85 : 1 },
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Call verified number"
+                      >
+                        <Text style={[s.inlineCallText, isMobile && s.inlineCallTextMobile]}>📞 Call</Text>
+                      </Pressable>
+                    </View>
                   </View>
-                  <Text style={s.unverifiedAlertDesc}>
-                    Direct appointment telephone numbers for this private consultation are being corroborated with official practitioner registries. Direct dialing is temporarily withheld to prevent unverified calls.
+                ) : (
+                  <View style={[s.unverifiedAlertBox, isMobile && s.unverifiedAlertBoxMobile]}>
+                    <View style={s.unverifiedAlertHeader}>
+                      <Text style={s.unverifiedAlertIcon}>⚠️</Text>
+                      <Text style={[s.unverifiedAlertTitle, isMobile && s.unverifiedAlertTitleMobile]}>Contact pending confirmation</Text>
+                    </View>
+                    <Text style={[s.unverifiedAlertDesc, isMobile && s.unverifiedAlertDescMobile]}>
+                      Contact numbers are being verified with official registries. Direct dialing is temporarily withheld.
+                    </Text>
+                  </View>
+                )}
+
+                {/* Mandatory Booking Notice */}
+                <View style={[s.appointmentDisclaimerBox, isMobile && s.appointmentDisclaimerBoxMobile]}>
+                  <Text style={s.appointmentDisclaimerIcon}>ℹ️</Text>
+                  <Text style={[s.appointmentDisclaimerText, isMobile && s.appointmentDisclaimerTextMobile]}>
+                    Contact the clinic directly to confirm availability. NalgondaOne provides directory listings only.
                   </Text>
                 </View>
-              )}
+              </ScrollView>
 
-              {/* Mandatory Booking Notice */}
-              <View style={s.appointmentDisclaimerBox}>
-                <Text style={s.appointmentDisclaimerIcon}>ℹ️</Text>
-                <Text style={s.appointmentDisclaimerText}>
-                  Please contact the doctor's clinic directly to confirm consultation availability. NalgondaOne provides directory listings only.
-                </Text>
-              </View>
-
-              {/* Dialog Close Button */}
+              {/* Dialog Close Button - always visible outside scroll */}
               <Pressable
                 onPress={() => setAppointmentModalListing(null)}
                 style={({ pressed }) => [
                   s.modalFullCloseBtn,
+                  isMobile && s.modalFullCloseBtnMobile,
                   { opacity: pressed ? 0.85 : 1 },
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel="Close dialog"
               >
-                <Text style={s.modalFullCloseBtnText}>Close</Text>
+                <Text style={[s.modalFullCloseBtnText, isMobile && s.modalFullCloseBtnTextMobile]}>Close</Text>
               </Pressable>
             </Pressable>
           </Pressable>
@@ -1485,15 +1486,15 @@ const s = StyleSheet.create({
   /* ---- search ---- */
   searchContainer: {
     marginTop: 20,
-    height: 60,
+    height: 56,
     backgroundColor: WHITE,
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
     flexDirection: "row",
     alignItems: "center",
-    paddingLeft: 16,
-    paddingRight: 6,
+    paddingLeft: 4,
+    paddingRight: 14,
     width: "100%",
     ...(Platform.OS === "web"
       ? {
@@ -1503,16 +1504,18 @@ const s = StyleSheet.create({
       : {}),
   },
   searchContainerMobile: {
-    height: 54,
+    height: 50,
     borderRadius: 14,
-    paddingLeft: 12,
-    paddingRight: 5,
+    paddingLeft: 2,
+    paddingRight: 10,
     marginTop: 16,
   },
   searchIconWrap: {
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     flexShrink: 0,
   },
   searchIcon: {
@@ -1521,7 +1524,6 @@ const s = StyleSheet.create({
   },
   searchIconMobile: {
     fontSize: 16,
-    marginRight: 2,
   },
   searchInput: {
     flex: 1,
@@ -1554,42 +1556,17 @@ const s = StyleSheet.create({
     backgroundColor: SLATE_100,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
     flexShrink: 0,
   },
   clearBtnMobile: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    marginRight: 6,
   },
   clearText: {
     fontSize: 12,
     color: SLATE_400,
     fontWeight: "700",
-  },
-  searchBtn: {
-    height: 48,
-    paddingHorizontal: 22,
-    backgroundColor: BRAND,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    flexShrink: 0,
-  },
-  searchBtnMobile: {
-    height: 44,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-  },
-  searchBtnText: {
-    color: WHITE,
-    fontSize: 14,
-    fontWeight: "800",
-    ...WEB_FONT,
-  },
-  searchBtnTextMobile: {
-    fontSize: 13,
   },
 
   /* ---- nearby discovery panel ---- */
@@ -1609,6 +1586,11 @@ const s = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "center",
     gap: 10,
+  },
+  discoveryTopRowMobile: {
+    flexDirection: "column" as any,
+    alignItems: "stretch" as any,
+    gap: 8,
   },
   locationPromptBtn: {
     flexDirection: "row",
@@ -1643,11 +1625,18 @@ const s = StyleSheet.create({
     paddingVertical: 7,
     gap: 8,
   },
+  activeGpsBadgeWrapMobile: {
+    flexWrap: "wrap" as any,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 6,
+  },
   activeGpsIndicator: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: "#16A34A",
+    flexShrink: 0,
   },
   activeGpsText: {
     fontSize: 12,
@@ -1655,11 +1644,17 @@ const s = StyleSheet.create({
     color: "#166534",
     ...WEB_FONT,
   },
+  activeGpsTextMobile: {
+    fontSize: 11,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   clearGpsBtn: {
     backgroundColor: "#DCFCE7",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    flexShrink: 0,
   },
   clearGpsText: {
     fontSize: 11,
@@ -2158,11 +2153,25 @@ const s = StyleSheet.create({
         }
       : {}),
   },
+  modalCardMobile: {
+    padding: 16,
+    borderRadius: 16,
+    ...(Platform.OS === "web"
+      ? {
+          maxHeight: "92vh" as any,
+          overflowY: "hidden" as any,
+        }
+      : {}),
+  },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     marginBottom: 18,
+  },
+  modalHeaderMobile: {
+    gap: 8,
+    marginBottom: 12,
   },
   modalIconWrap: {
     width: 44,
@@ -2172,8 +2181,16 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  modalIconWrapMobile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+  },
   modalIcon: {
     fontSize: 20,
+  },
+  modalIconMobile: {
+    fontSize: 16,
   },
   modalTitle: {
     fontSize: 18,
@@ -2181,11 +2198,18 @@ const s = StyleSheet.create({
     color: SLATE_900,
     ...WEB_FONT,
   },
+  modalTitleMobile: {
+    fontSize: 15,
+  },
   modalSubtitle: {
     fontSize: 13,
     color: SLATE_500,
     marginTop: 2,
     ...WEB_FONT,
+  },
+  modalSubtitleMobile: {
+    fontSize: 11,
+    marginTop: 1,
   },
   modalCloseIconBtn: {
     width: 32,
@@ -2195,11 +2219,23 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  modalCloseIconBtnMobile: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
   modalCloseIconText: {
     fontSize: 14,
     fontWeight: "700",
     color: SLATE_500,
   },
+  modalScrollArea: {
+    flexGrow: 0,
+    flexShrink: 1,
+    ...(Platform.OS === "web"
+      ? { maxHeight: "60vh" as any, overflowY: "auto" as any }
+      : {}),
+  } as any,
   modalPhoneBox: {
     backgroundColor: "#F8FAFC",
     borderRadius: 14,
@@ -2286,10 +2322,20 @@ const s = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
+  appointmentDetailBoxMobile: {
+    padding: 10,
+    gap: 6,
+    marginBottom: 10,
+    borderRadius: 10,
+  },
   detailRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
+  },
+  detailRowMobile: {
+    flexDirection: "column" as any,
+    gap: 2,
   },
   detailLabel: {
     fontSize: 12,
@@ -2298,12 +2344,24 @@ const s = StyleSheet.create({
     width: 120,
     ...WEB_FONT,
   },
+  detailLabelMobile: {
+    fontSize: 10.5,
+    fontWeight: "800",
+    width: "auto" as any,
+    textTransform: "uppercase" as any,
+    letterSpacing: 0.3,
+    color: SLATE_400,
+  },
   detailValue: {
     fontSize: 13,
     fontWeight: "600",
     color: SLATE_900,
     flex: 1,
     ...WEB_FONT,
+  },
+  detailValueMobile: {
+    fontSize: 12,
+    flex: undefined as any,
   },
   confirmedContactBox: {
     backgroundColor: "#F0FDF4",
@@ -2314,6 +2372,11 @@ const s = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
   },
+  confirmedContactBoxMobile: {
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
   confirmedContactLabel: {
     fontSize: 11,
     fontWeight: "800",
@@ -2323,12 +2386,20 @@ const s = StyleSheet.create({
     marginBottom: 4,
     ...WEB_FONT,
   },
+  confirmedContactLabelMobile: {
+    fontSize: 9.5,
+    marginBottom: 2,
+  },
   confirmedContactNumber: {
     fontSize: 20,
     fontWeight: "900",
     color: "#15803D",
     marginBottom: 10,
     ...WEB_FONT,
+  },
+  confirmedContactNumberMobile: {
+    fontSize: 16,
+    marginBottom: 8,
   },
   contactActionRow: {
     flexDirection: "row",
@@ -2342,6 +2413,10 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  inlineActionBtnMobile: {
+    height: 36,
+    borderRadius: 8,
+  },
   inlineCopyBtn: {
     backgroundColor: BRAND,
   },
@@ -2354,6 +2429,9 @@ const s = StyleSheet.create({
     color: WHITE,
     ...WEB_FONT,
   },
+  inlineActionTextMobile: {
+    fontSize: 11,
+  },
   inlineCallBtn: {
     backgroundColor: "#059669",
   },
@@ -2363,6 +2441,9 @@ const s = StyleSheet.create({
     color: WHITE,
     ...WEB_FONT,
   },
+  inlineCallTextMobile: {
+    fontSize: 11,
+  },
   unverifiedAlertBox: {
     backgroundColor: "#FFFBEB",
     borderRadius: 14,
@@ -2370,6 +2451,11 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FDE68A",
     marginBottom: 14,
+  },
+  unverifiedAlertBoxMobile: {
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
   },
   unverifiedAlertHeader: {
     flexDirection: "row",
@@ -2386,11 +2472,19 @@ const s = StyleSheet.create({
     color: "#B45309",
     ...WEB_FONT,
   },
+  unverifiedAlertTitleMobile: {
+    fontSize: 12,
+    flex: 1,
+  },
   unverifiedAlertDesc: {
     fontSize: 12,
     color: "#78350F",
     lineHeight: 18,
     ...WEB_FONT,
+  },
+  unverifiedAlertDescMobile: {
+    fontSize: 11,
+    lineHeight: 16,
   },
   appointmentDisclaimerBox: {
     backgroundColor: "#FEF3C7",
@@ -2402,6 +2496,12 @@ const s = StyleSheet.create({
     alignItems: "flex-start",
     gap: 10,
     marginBottom: 16,
+  },
+  appointmentDisclaimerBoxMobile: {
+    padding: 10,
+    gap: 8,
+    borderRadius: 10,
+    marginBottom: 10,
   },
   appointmentDisclaimerIcon: {
     fontSize: 16,
@@ -2415,6 +2515,10 @@ const s = StyleSheet.create({
     flex: 1,
     ...WEB_FONT,
   },
+  appointmentDisclaimerTextMobile: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
   modalFullCloseBtn: {
     height: 44,
     borderRadius: 12,
@@ -2422,11 +2526,21 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
+    flexShrink: 0,
+    marginTop: 8,
+  },
+  modalFullCloseBtnMobile: {
+    height: 40,
+    borderRadius: 10,
+    marginTop: 6,
   },
   modalFullCloseBtnText: {
     fontSize: 14,
     fontWeight: "800",
     color: SLATE_700,
     ...WEB_FONT,
+  },
+  modalFullCloseBtnTextMobile: {
+    fontSize: 13,
   },
 });
