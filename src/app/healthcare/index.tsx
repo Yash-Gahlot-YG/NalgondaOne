@@ -371,6 +371,39 @@ function SkeletonCard({ cardWidth }: { cardWidth: string }) {
 }
 
 /* ================================================================ */
+/* CONTENT WRAPPER                                                    */
+/* ================================================================ */
+
+function ContentWrap({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: any;
+}) {
+  const { width } = useWindowDimensions();
+  const isMobile = isMobileWidth(width);
+  const isTablet = isTabletWidth(width);
+  const contentPad = isMobile ? 16 : isTablet ? 36 : 0;
+
+  return (
+    <View
+      style={[
+        {
+          width: "100%",
+          maxWidth: CONTENT_MAX_WIDTH,
+          alignSelf: "center",
+          paddingHorizontal: contentPad,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+/* ================================================================ */
 /* MAIN SCREEN                                                        */
 /* ================================================================ */
 
@@ -407,8 +440,6 @@ export default function HealthcareScreen() {
   const [appointmentModalListing, setAppointmentModalListing] = useState<BusinessDocument | null>(null);
   const [appointmentCopied, setAppointmentCopied] = useState(false);
 
-  const contentPad = isMobile ? 16 : isTablet ? 36 : 0;
-
   /* ---- Data fetching ---- */
   const loadListings = useCallback(
     async (queryText?: string) => {
@@ -416,7 +447,7 @@ export default function HealthcareScreen() {
       setError(false);
       setErrorMessage("");
       try {
-        const query = typeof queryText === "string" ? queryText : searchText;
+        const query = typeof queryText === "string" ? queryText : "";
         const result = await fetchHealthcareListings({
           category: activeCategory !== "All" ? activeCategory : undefined,
           search: query.trim() || undefined,
@@ -448,17 +479,13 @@ export default function HealthcareScreen() {
 
   useEffect(() => {
     mountedRef.current = true;
-    loadListings(searchText);
+    loadListings();
     return () => {
       mountedRef.current = false;
     };
-  }, [activeCategory]);
+  }, [loadListings]);
 
   /* ---- Search text & submit handlers ---- */
-  const handleSearchChange = useCallback((text: string) => {
-    setSearchText(text);
-  }, []);
-
   const handleSearchSubmit = useCallback(() => {
     loadListings(searchText);
   }, [loadListings, searchText]);
@@ -666,28 +693,6 @@ export default function HealthcareScreen() {
     }
   };
 
-  const ContentWrap = ({
-    children,
-    style,
-  }: {
-    children: React.ReactNode;
-    style?: any;
-  }) => (
-    <View
-      style={[
-        {
-          width: "100%",
-          maxWidth: CONTENT_MAX_WIDTH,
-          alignSelf: "center" as const,
-          paddingHorizontal: contentPad,
-        },
-        style,
-      ]}
-    >
-      {children}
-    </View>
-  );
-
   return (
     <View style={s.page}>
       {/* ---- Sticky Header ---- */}
@@ -732,6 +737,7 @@ export default function HealthcareScreen() {
             {/* Search Bar */}
             <View style={[s.searchContainer, isMobile && s.searchContainerMobile]}>
               <Pressable
+                key="search-icon"
                 onPress={() => inputRef.current?.focus()}
                 style={s.searchIconWrap}
                 accessibilityRole="button"
@@ -742,9 +748,10 @@ export default function HealthcareScreen() {
                 </Text>
               </Pressable>
               <TextInput
+                key="search-input"
                 ref={inputRef}
                 value={searchText}
-                onChangeText={handleSearchChange}
+                onChangeText={setSearchText}
                 onSubmitEditing={handleSearchSubmit}
                 placeholder={
                   isMobile
@@ -763,6 +770,7 @@ export default function HealthcareScreen() {
               />
               {searchText.length > 0 && (
                 <Pressable
+                  key="search-clear"
                   onPress={handleClearSearch}
                   style={({ pressed }) => [
                     s.clearBtn,
@@ -777,6 +785,7 @@ export default function HealthcareScreen() {
                 </Pressable>
               )}
               <Pressable
+                key="search-submit"
                 onPress={handleSearchSubmit}
                 style={({ pressed }) => [
                   s.searchBtn,
