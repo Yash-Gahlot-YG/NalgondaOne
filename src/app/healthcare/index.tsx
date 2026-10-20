@@ -807,7 +807,7 @@ export default function HealthcareScreen() {
                   </Text>
                   <Pressable
                     onPress={handleClearLocation}
-                    style={s.clearGpsBtn}
+                    style={[s.clearGpsBtn, isMobile && s.clearGpsBtnMobile]}
                     accessibilityRole="button"
                     accessibilityLabel="Clear location filter"
                   >
@@ -820,6 +820,7 @@ export default function HealthcareScreen() {
                   disabled={locLoading}
                   style={({ pressed }) => [
                     s.locationPromptBtn,
+                    isMobile && s.locationPromptBtnMobile,
                     { opacity: pressed || locLoading ? 0.8 : 1 },
                   ]}
                   accessibilityRole="button"
@@ -836,6 +837,7 @@ export default function HealthcareScreen() {
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                style={[s.facilityScroll, isMobile && s.facilityScrollMobile]}
                 contentContainerStyle={s.facilityScrollRow}
               >
                 {FACILITY_TYPES.map((f) => {
@@ -876,9 +878,14 @@ export default function HealthcareScreen() {
 
             {/* Distance Filter (Active when device location is available) */}
             {userCoords && (
-              <View style={s.distanceFilterRow}>
-                <Text style={s.filterRowLabel}>Distance Radius:</Text>
-                <View style={s.distancePillGroup}>
+              <View style={[s.distanceFilterRow, isMobile && s.distanceFilterRowMobile]}>
+                <Text style={[s.filterRowLabel, isMobile && s.filterRowLabelMobile]}>Distance Radius:</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={s.rowScrollView}
+                  contentContainerStyle={s.distancePillGroup}
+                >
                   {DISTANCE_FILTERS.map((df) => {
                     const isSelected = distanceRadius === df.value;
                     return (
@@ -889,6 +896,8 @@ export default function HealthcareScreen() {
                           s.distancePill,
                           isSelected && s.distancePillActive,
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Distance radius ${df.label}`}
                       >
                         <Text
                           style={[
@@ -901,17 +910,18 @@ export default function HealthcareScreen() {
                       </Pressable>
                     );
                   })}
-                </View>
+                </ScrollView>
               </View>
             )}
 
             {/* Manual Locality & PIN Fallback Filters */}
             <View style={s.fallbackFilterRow}>
-              <View style={s.fallbackGroup}>
-                <Text style={s.fallbackLabel}>Locality:</Text>
+              <View style={[s.fallbackGroup, isMobile && s.fallbackGroupMobile]}>
+                <Text style={[s.fallbackLabel, isMobile && s.fallbackLabelMobile]}>Locality:</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
+                  style={s.rowScrollView}
                   contentContainerStyle={s.fallbackChipRow}
                 >
                   {LOCALITIES.map((loc) => {
@@ -924,6 +934,8 @@ export default function HealthcareScreen() {
                           s.fallbackChip,
                           isSelected && s.fallbackChipActive,
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Locality ${loc}`}
                       >
                         <Text
                           style={[
@@ -939,11 +951,12 @@ export default function HealthcareScreen() {
                 </ScrollView>
               </View>
 
-              <View style={[s.fallbackGroup, { marginTop: 8 }]}>
-                <Text style={s.fallbackLabel}>PIN Code:</Text>
+              <View style={[s.fallbackGroup, { marginTop: 8 }, isMobile && s.fallbackGroupMobile]}>
+                <Text style={[s.fallbackLabel, isMobile && s.fallbackLabelMobile]}>PIN Code:</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
+                  style={s.rowScrollView}
                   contentContainerStyle={s.fallbackChipRow}
                 >
                   {PINCODES.map((pin) => {
@@ -956,6 +969,8 @@ export default function HealthcareScreen() {
                           s.fallbackChip,
                           isSelected && s.fallbackChipActive,
                         ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`PIN code ${pin}`}
                       >
                         <Text
                           style={[
@@ -981,6 +996,7 @@ export default function HealthcareScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={s.specialtyScrollView}
             contentContainerStyle={s.filterContainer}
             accessibilityRole="tablist"
           >
@@ -1372,6 +1388,12 @@ const s = StyleSheet.create({
   page: {
     flex: 1,
     backgroundColor: SLATE_50,
+    ...(Platform.OS === "web"
+      ? {
+          overflowX: "hidden" as any,
+          maxWidth: "100vw" as any,
+        }
+      : {}),
   },
 
   /* ---- header ---- */
@@ -1578,31 +1600,41 @@ const s = StyleSheet.create({
     padding: 16,
     gap: 12,
     ...(Platform.OS === "web"
-      ? { boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)" }
+      ? {
+          boxShadow: "0 2px 10px rgba(15, 23, 42, 0.04)",
+          overflow: "hidden" as any,
+        }
       : {}),
   },
   discoveryTopRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
     gap: 10,
   },
   discoveryTopRowMobile: {
     flexDirection: "column" as any,
-    alignItems: "stretch" as any,
-    gap: 8,
+    alignItems: "flex-start" as any,
+    gap: 10,
   },
   locationPromptBtn: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: BRAND,
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    height: 42,
     borderRadius: 12,
     gap: 6,
+    flexShrink: 0,
     ...(Platform.OS === "web"
       ? { boxShadow: "0 2px 8px rgba(37, 99, 235, 0.2)" }
       : {}),
+  },
+  locationPromptBtnMobile: {
+    alignSelf: "flex-start",
+    height: 42,
+    paddingHorizontal: 14,
+    paddingVertical: 0,
+    justifyContent: "center",
   },
   locationPromptIcon: {
     fontSize: 14,
@@ -1624,11 +1656,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     gap: 8,
+    flexShrink: 0,
   },
   activeGpsBadgeWrapMobile: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
     flexWrap: "wrap" as any,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 7,
     gap: 6,
   },
   activeGpsIndicator: {
@@ -1656,11 +1691,32 @@ const s = StyleSheet.create({
     borderRadius: 8,
     flexShrink: 0,
   },
+  clearGpsBtnMobile: {
+    minHeight: 28,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   clearGpsText: {
     fontSize: 11,
     fontWeight: "700",
     color: "#15803D",
     ...WEB_FONT,
+  },
+  facilityScroll: {
+    flex: 1,
+    minWidth: 0,
+    ...(Platform.OS === "web"
+      ? {
+          overflowX: "auto" as any,
+          WebkitOverflowScrolling: "touch" as any,
+        }
+      : {}),
+  },
+  facilityScrollMobile: {
+    width: "100%",
+    maxWidth: "100%",
+    alignSelf: "stretch",
+    flexGrow: 0,
   },
   facilityScrollRow: {
     flexDirection: "row",
@@ -1675,6 +1731,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 10,
+    flexShrink: 0,
   },
   facilityPillActive: {
     backgroundColor: "#1E293B",
@@ -1714,11 +1771,14 @@ const s = StyleSheet.create({
   distanceFilterRow: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
     gap: 10,
-    paddingTop: 4,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: SLATE_100,
+  },
+  distanceFilterRowMobile: {
+    paddingTop: 8,
+    gap: 8,
   },
   filterRowLabel: {
     fontSize: 12,
@@ -1726,11 +1786,28 @@ const s = StyleSheet.create({
     color: SLATE_500,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+    flexShrink: 0,
     ...WEB_FONT,
+  },
+  filterRowLabelMobile: {
+    fontSize: 11,
+    fontWeight: "800",
+    flexShrink: 0,
+  },
+  rowScrollView: {
+    flex: 1,
+    minWidth: 0,
+    maxWidth: "100%",
+    ...(Platform.OS === "web"
+      ? {
+          overflowX: "auto" as any,
+          WebkitOverflowScrolling: "touch" as any,
+        }
+      : {}),
   },
   distancePillGroup: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    alignItems: "center",
     gap: 6,
   },
   distancePill: {
@@ -1738,6 +1815,7 @@ const s = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 8,
     backgroundColor: SLATE_100,
+    flexShrink: 0,
   },
   distancePillActive: {
     backgroundColor: BRAND,
@@ -1761,16 +1839,27 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  fallbackGroupMobile: {
+    gap: 8,
+  },
   fallbackLabel: {
     fontSize: 11,
     fontWeight: "800",
     color: SLATE_400,
     textTransform: "uppercase",
     width: 65,
+    flexShrink: 0,
     ...WEB_FONT,
+  },
+  fallbackLabelMobile: {
+    fontSize: 11,
+    fontWeight: "800",
+    width: 65,
+    flexShrink: 0,
   },
   fallbackChipRow: {
     flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   fallbackChip: {
@@ -1780,6 +1869,7 @@ const s = StyleSheet.create({
     backgroundColor: SLATE_50,
     borderWidth: 1,
     borderColor: SLATE_200,
+    flexShrink: 0,
   },
   fallbackChipActive: {
     backgroundColor: "#DBEAFE",
@@ -1796,6 +1886,16 @@ const s = StyleSheet.create({
   },
 
   /* ---- specialty filters ---- */
+  specialtyScrollView: {
+    width: "100%",
+    maxWidth: "100%",
+    ...(Platform.OS === "web"
+      ? {
+          overflowX: "auto" as any,
+          WebkitOverflowScrolling: "touch" as any,
+        }
+      : {}),
+  },
   filterContainer: {
     flexDirection: "row",
     gap: 8,
@@ -1809,6 +1909,7 @@ const s = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 20,
     borderWidth: 1.5,
+    flexShrink: 0,
   },
   filterChipActive: {
     backgroundColor: BRAND,
