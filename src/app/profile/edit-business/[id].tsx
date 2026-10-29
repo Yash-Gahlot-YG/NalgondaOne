@@ -631,10 +631,10 @@ export default function EditBusinessScreen() {
                 </View>
 
                 {/* Submit Action */}
-                <View style={s.submitBar}>
+                <View style={[s.submitBar, isMobile && s.submitBarMobile]}>
                   <Pressable
                     onPress={() => router.back()}
-                    style={s.cancelBtn}
+                    style={[s.cancelBtn, isMobile && s.submitBtnMobile]}
                     disabled={isSaving}
                   >
                     <Text style={s.cancelBtnText}>Cancel</Text>
@@ -645,6 +645,7 @@ export default function EditBusinessScreen() {
                     disabled={isSaving}
                     style={({ pressed }) => [
                       s.saveBtn,
+                      isMobile && s.submitBtnMobile,
                       { opacity: pressed || isSaving ? 0.85 : 1 },
                     ]}
                   >
@@ -992,11 +993,22 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "flex-end",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 12,
     marginTop: 28,
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: SLATE_100,
+  },
+  submitBarMobile: {
+    flexDirection: "column-reverse",
+    alignItems: "stretch",
+  },
+  submitBtnMobile: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 44,
   },
   cancelBtn: {
     paddingHorizontal: 16,

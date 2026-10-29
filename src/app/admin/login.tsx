@@ -38,19 +38,18 @@ export default function AdminLoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // If already authenticated, redirect to dashboard
-  if (authLoading) {
+  React.useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace("/admin" as any);
+    }
+  }, [authLoading, isAuthenticated]);
+
+  if (authLoading || isAuthenticated) {
     return (
       <View style={[s.page, s.center]}>
         <ActivityIndicator color={BRAND} size="large" />
       </View>
     );
-  }
-
-  if (isAuthenticated) {
-    // Use setTimeout to avoid state update during render
-    setTimeout(() => router.replace("/admin" as any), 0);
-    return null;
   }
 
   const handleLogin = async () => {

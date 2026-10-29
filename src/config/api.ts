@@ -12,33 +12,18 @@ import { Platform } from "react-native";
 /* - Production: Set PRODUCTION_API_URL.                            */
 /* ================================================================ */
 
-/** Set this to your development machine's LAN IP for physical device testing */
-const DEV_MACHINE_IP = "localhost";
-const DEV_PORT = "5000";
+/** Production backend deployment on Render */
+const PRODUCTION_API_URL = "https://nalgondaone.onrender.com";
 
 function getBaseUrl(): string {
-  // 1. Environment variable (set in production / EAS / .env)
+  // 1. Environment variable (set in .env, EAS, or deployment platform)
   const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envApiUrl && envApiUrl.trim().length > 0) {
     return envApiUrl.trim().replace(/\/+$/, "");
   }
 
-  // 2. Development fallbacks
-  if (Platform.OS === "web") {
-    return `http://localhost:${DEV_PORT}`;
-  }
-
-  if (Platform.OS === "android") {
-    // Android emulator uses 10.0.2.2 to reach host machine
-    // For physical devices, use DEV_MACHINE_IP (set to your LAN IP)
-    const host =
-      DEV_MACHINE_IP === "localhost" ? "10.0.2.2" : DEV_MACHINE_IP;
-    return `http://${host}:${DEV_PORT}`;
-  }
-
-  // iOS simulator — localhost works; physical devices need LAN IP
-  const host = DEV_MACHINE_IP;
-  return `http://${host}:${DEV_PORT}`;
+  // 2. Safe default fallback (ensures physical devices, Expo Go, and web never hit 10.0.2.2)
+  return PRODUCTION_API_URL;
 }
 
 export const API_BASE_URL = getBaseUrl();

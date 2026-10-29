@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import { router } from "expo-router";
+import { useSafeBack } from "@/hooks/useSafeBack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -30,9 +33,12 @@ import { useAuth } from "@/context/AuthContext";
 import { useLocalSearchParams } from "expo-router";
 
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isMobile = isMobileWidth(width);
   const { redirectTo } = useLocalSearchParams<{ redirectTo?: string }>();
+  const targetPath = redirectTo && redirectTo.startsWith("/") ? redirectTo : "/";
+  const goBack = useSafeBack(targetPath);
   const { login, isAuthenticated, loading: authLoading } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -42,19 +48,18 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   // If already authenticated, redirect to destination or home
-  if (authLoading) {
+  React.useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.replace(targetPath as any);
+    }
+  }, [authLoading, isAuthenticated, targetPath]);
+
+  if (authLoading || isAuthenticated) {
     return (
       <View style={[s.page, s.center]}>
         <ActivityIndicator color={BRAND} size="large" />
       </View>
     );
-  }
-
-  const targetPath = redirectTo && redirectTo.startsWith("/") ? redirectTo : "/";
-
-  if (isAuthenticated) {
-    setTimeout(() => router.replace(targetPath as any), 0);
-    return null;
   }
 
   const handleLogin = async () => {
@@ -86,13 +91,21 @@ export default function LoginScreen() {
 
   return (
     <View style={s.page}>
-      <ScrollView
-        contentContainerStyle={[
-          s.scrollContent,
-          { paddingHorizontal: isMobile ? 20 : 32 },
-        ]}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        <ScrollView
+          contentContainerStyle={[
+            s.scrollContent,
+            {
+              paddingHorizontal: isMobile ? 20 : 32,
+              paddingTop: Math.max(insets.top + 20, 40),
+              paddingBottom: Math.max(insets.bottom + 20, 40),
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={s.formCard}>
           {/* Header */}
           <View style={s.header}>
@@ -202,13 +215,16 @@ export default function LoginScreen() {
 
           {/* Back link */}
           <Pressable
-            onPress={() => router.push("/" as any)}
+            onPress={goBack}
             style={s.backLink}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
-            <Text style={s.backLinkText}>← Back to Home</Text>
+            <Text style={s.backLinkText}>← Back to {targetPath === "/" ? "Home" : "Previous"}</Text>
           </Pressable>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

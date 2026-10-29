@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { router } from "expo-router";
+import { useSafeBack } from "@/hooks/useSafeBack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ActivityIndicator,
   Platform,
@@ -36,6 +38,8 @@ import { fetchMyBusinesses, type BusinessDocument } from "@/services/businessApi
 import { isRemoteImageUrl } from "@/utils/imageUtils";
 
 export default function ProfileDashboardScreen() {
+  const insets = useSafeAreaInsets();
+  const goBackToHome = useSafeBack("/");
   const { width } = useWindowDimensions();
   const isMobile = isMobileWidth(width);
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
@@ -152,22 +156,26 @@ export default function ProfileDashboardScreen() {
   return (
     <View style={s.page}>
       {/* Top Navigation */}
-      <View style={s.navbar}>
+      <View style={[s.navbar, { paddingTop: insets.top }]}>
         <View style={s.navbarInner}>
-          <Pressable onPress={() => router.push("/")} style={s.logoWrap}>
+          <Pressable onPress={goBackToHome} style={s.logoWrap}>
             <Text style={s.logoText}>
               Nalgonda<Text style={s.logoAccent}>One</Text>
             </Text>
-            <Text style={s.portalBadge}>Owner Dashboard</Text>
+            {width >= 420 && (
+              <Text style={s.portalBadge}>Owner Dashboard</Text>
+            )}
           </Pressable>
 
           <View style={s.navActions}>
-            <Pressable
-              onPress={() => router.push("/" as any)}
-              style={s.navLink}
-            >
-              <Text style={s.navLinkText}>Explore</Text>
-            </Pressable>
+            {width >= 480 && (
+              <Pressable
+                onPress={() => router.push("/" as any)}
+                style={s.navLink}
+              >
+                <Text style={s.navLinkText}>Explore</Text>
+              </Pressable>
+            )}
             <Pressable
               onPress={() => router.push("/services" as any)}
               style={s.navLink}
@@ -397,13 +405,19 @@ export default function ProfileDashboardScreen() {
                     </View>
 
                     {/* Action Buttons */}
-                    <View style={s.cardActionsRow}>
+                    <View
+                      style={[
+                        s.cardActionsRow,
+                        isMobile && s.cardActionsRowMobile,
+                      ]}
+                    >
                       <Pressable
                         onPress={() =>
                           router.push(`/profile/edit-business/${biz._id}` as any)
                         }
                         style={({ pressed }) => [
                           s.editBtn,
+                          isMobile && s.actionBtnMobile,
                           { opacity: pressed ? 0.85 : 1 },
                         ]}
                       >
@@ -412,9 +426,10 @@ export default function ProfileDashboardScreen() {
 
                       {biz.status === "approved" ? (
                         <Pressable
-                          onPress={() => router.push(`/places/${biz._id}` as any)}
+                          onPress={() => router.push(`/services/provider/${biz._id}` as any)}
                           style={({ pressed }) => [
                             s.viewListingBtn,
+                            isMobile && s.actionBtnMobile,
                             { opacity: pressed ? 0.85 : 1 },
                           ]}
                         >
@@ -423,7 +438,12 @@ export default function ProfileDashboardScreen() {
                           </Text>
                         </Pressable>
                       ) : (
-                        <View style={s.statusInfoPill}>
+                        <View
+                          style={[
+                            s.statusInfoPill,
+                            isMobile && s.actionBtnMobile,
+                          ]}
+                        >
                           <Text style={s.statusInfoPillText}>
                             {biz.status === "pending"
                               ? "Awaiting review by admin"
@@ -899,21 +919,36 @@ const s = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: SLATE_100,
     gap: 10,
   },
+  cardActionsRowMobile: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 8,
+  },
+  actionBtnMobile: {
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: 40,
+  },
   editBtn: {
     backgroundColor: BRAND,
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
   },
   editBtnText: {
     color: WHITE,
     fontSize: 13,
     fontWeight: "800",
+    textAlign: "center",
     ...WEB_FONT,
   },
   viewListingBtn: {
@@ -921,25 +956,31 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: SLATE_200,
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 9,
     borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
   },
   viewListingBtnText: {
     color: SLATE_700,
     fontSize: 12,
     fontWeight: "700",
+    textAlign: "center",
     ...WEB_FONT,
   },
   statusInfoPill: {
     backgroundColor: SLATE_100,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
   },
   statusInfoPillText: {
     color: SLATE_500,
     fontSize: 11,
     fontWeight: "600",
+    textAlign: "center",
     ...WEB_FONT,
   },
 });

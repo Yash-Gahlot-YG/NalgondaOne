@@ -996,9 +996,26 @@ export async function fetchApprovedProviders(): Promise<FetchApprovedResult> {
 /* internals with API calls.                                          */
 /* ---------------------------------------------------------------- */
 
-/** Get category info by slug */
+// Module-level selected location state for Services session
+let activeServicesLocation: LocationOption = nalgondaLocations[0];
+
+export function getSelectedServicesLocation(): LocationOption {
+  return activeServicesLocation;
+}
+
+export function setSelectedServicesLocation(location: LocationOption): void {
+  activeServicesLocation = location;
+}
+
+/** Get category info by slug (case-insensitive, normalized, or matching title) */
 export function getCategoryBySlug(slug: string): ServiceCategory | undefined {
-  return allCategories.find((c) => c.slug === slug);
+  if (!slug) return undefined;
+  const s = slug.trim().toLowerCase();
+  return (
+    allCategories.find((c) => c.slug.toLowerCase() === s) ||
+    allCategories.find((c) => c.title.toLowerCase() === s) ||
+    allCategories.find((c) => c.slug.toLowerCase() === normalizeCategorySlug(s))
+  );
 }
 
 /** Generate template providers for a category if none exist in mockProviders */

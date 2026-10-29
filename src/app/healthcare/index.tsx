@@ -1,5 +1,8 @@
 import { router } from "expo-router";
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, memo } from "react";
+import * as Location from "expo-location";
+import { useSafeBack } from "@/hooks/useSafeBack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Linking,
   Modal,
@@ -33,7 +36,10 @@ import {
 } from "@/constants/serviceTheme";
 import EmptyState from "@/components/services/EmptyState";
 import ErrorState from "@/components/services/ErrorState";
-import { fetchHealthcareListings } from "@/services/healthcareApi";
+import {
+  fetchHealthcareListings,
+  getCachedHealthcare,
+} from "@/services/healthcareApi";
 import type { BusinessDocument } from "@/services/businessApi";
 import {
   isPhoneVerified,
@@ -159,7 +165,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
 /* HEALTHCARE CARD                                                    */
 /* ================================================================ */
 
-function HealthcareCard({
+const HealthcareCard = memo(function HealthcareCard({
   listing,
   cardWidth,
   distanceKm,
@@ -343,7 +349,7 @@ function HealthcareCard({
       </View>
     </View>
   );
-}
+});
 
 /* ================================================================ */
 /* SKELETON CARD                                                      */
@@ -408,7 +414,9 @@ function ContentWrap({
 /* ================================================================ */
 
 export default function HealthcareScreen() {
-  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const goBackToHome = useSafeBack("/");
+  const { width, height } = useWindowDimensions();
   const isMobile = isMobileWidth(width);
   const isTablet = isTabletWidth(width);
 
@@ -440,17 +448,26 @@ export default function HealthcareScreen() {
   const [appointmentModalListing, setAppointmentModalListing] = useState<BusinessDocument | null>(null);
   const [appointmentCopied, setAppointmentCopied] = useState(false);
 
-  /* ---- Data fetching ---- */
+  /* ---- Data fetching with Cache & Background Revalidation ---- */
   const loadListings = useCallback(
-    async (queryText?: string) => {
+    async (forceRefresh = false) => {
+      // Check in-memory cache first for instant display
+      if (!forceRefresh) {
+        const cached = getCachedHealthcare("all");
+        if (cached && cached.length > 0) {
+          setRawListings(cached);
+          setLoading(false);
+          setError(false);
+          return;
+        }
+      }
+
       setLoading(true);
       setError(false);
       setErrorMessage("");
       try {
-        const query = typeof queryText === "string" ? queryText : "";
         const result = await fetchHealthcareListings({
-          category: activeCategory !== "All" ? activeCategory : undefined,
-          search: query.trim() || undefined,
+          forceRefresh,
         });
         if (!mountedRef.current) return;
         if (result.success) {
@@ -474,7 +491,7 @@ export default function HealthcareScreen() {
         if (mountedRef.current) setLoading(false);
       }
     },
-    [activeCategory]
+    []
   );
 
   useEffect(() => {
@@ -487,45 +504,124 @@ export default function HealthcareScreen() {
 
   /* ---- Search text & submit handlers ---- */
   const handleSearchSubmit = useCallback(() => {
-    loadListings(searchText);
-  }, [loadListings, searchText]);
+    // Search is handled client-side instantly in processedListings
+  }, []);
 
   const handleClearSearch = useCallback(() => {
     setSearchText("");
-    loadListings("");
-  }, [loadListings]);
+  }, []);
 
   /* ---- Device Geolocation Handler ---- */
-  const handleRequestDeviceLocation = () => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setLocError("Location services are not supported on this browser.");
-      return;
-    }
+  const handleRequestDeviceLocation = async () => {
     setLocLoading(true);
     setLocError(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
+
+    // Platform: Web Browser check
+    if (Platform.OS === "web") {
+      if (
+        typeof window !== "undefined" &&
+        window.isSecureContext === false &&
+        window.location.hostname !== "localhost" &&
+        window.location.hostname !== "127.0.0.1"
+      ) {
         setLocLoading(false);
+        setLocError(
+          "Browser geolocation requires a secure connection (HTTPS). Please select your locality or PIN code from the filters below."
+        );
+        return;
+      }
+    }
+
+    try {
+      // 1. Check whether location services (GPS) are enabled on device
+      let servicesEnabled = true;
+      try {
+        servicesEnabled = await Location.hasServicesEnabledAsync();
+      } catch {
+        servicesEnabled = true;
+      }
+
+      if (!servicesEnabled) {
+        setLocLoading(false);
+        setLocError(
+          "Device location services (GPS) are turned off. Please turn on GPS in your device settings or choose a locality below."
+        );
+        return;
+      }
+
+      // 2. Request foreground location permission
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status !== Location.PermissionStatus.GRANTED) {
+        setLocLoading(false);
+        setLocError(
+          "Location permission was denied. Please allow location access in your device settings or choose a locality below."
+        );
+        return;
+      }
+
+      // 3. Obtain current coordinates with timeout protection
+      const locPromise = Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("LOCATION_TIMEOUT")), 15000)
+      );
+
+      const loc = await Promise.race([locPromise, timeoutPromise]);
+
+      if (loc && loc.coords) {
         setUserCoords({
-          latitude: pos.coords.latitude,
-          longitude: pos.coords.longitude,
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
         });
         setLocError(null);
-      },
-      (err) => {
-        setLocLoading(false);
-        let msg = "Could not access location.";
-        if (err.code === 1) {
-          msg = "Location permission denied. Use manual locality or PIN filters below.";
-        } else if (err.code === 2) {
-          msg = "Position unavailable. Please check device location settings.";
-        } else if (err.code === 3) {
-          msg = "Location request timed out. Please try again.";
+      } else {
+        setLocError(
+          "Unable to determine current coordinates. Please check your GPS signal or select your locality below."
+        );
+      }
+    } catch (err: any) {
+      if (err?.message === "LOCATION_TIMEOUT") {
+        setLocError(
+          "Location request timed out. Please tap Try Again or select a locality below."
+        );
+      } else {
+        // Fallback for web browser navigator if expo-location encountered an issue
+        if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              setLocLoading(false);
+              setUserCoords({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+              });
+              setLocError(null);
+            },
+            (geoErr) => {
+              setLocLoading(false);
+              let msg = "Could not access location.";
+              if (geoErr.code === 1) {
+                msg = "Location permission was denied. Please allow location access or choose a locality below.";
+              } else if (geoErr.code === 2) {
+                msg = "GPS position unavailable. Please check device location settings or choose a locality below.";
+              } else if (geoErr.code === 3) {
+                msg = "Location request timed out. Please tap Try Again or choose a locality below.";
+              }
+              setLocError(msg);
+            },
+            { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+          );
+          return;
         }
-        setLocError(msg);
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
-    );
+
+        setLocError(
+          "Could not access device location. Please ensure GPS is turned on or select your locality below."
+        );
+      }
+    } finally {
+      setLocLoading(false);
+    }
   };
 
   const handleClearLocation = () => {
@@ -584,6 +680,14 @@ export default function HealthcareScreen() {
       });
     }
 
+    // 0b. Specialty / Category Filter (instant client-side filtering)
+    if (activeCategory !== "All") {
+      const catLower = activeCategory.toLowerCase();
+      result = result.filter(({ item }) =>
+        (item.category || "").toLowerCase() === catLower
+      );
+    }
+
     // 1. Facility Type Filter
     if (selectedFacilityType !== "all") {
       result = result.filter(({ item }) => item.facilityType === selectedFacilityType);
@@ -624,6 +728,21 @@ export default function HealthcareScreen() {
       });
     }
 
+    // 6. Move the two doctor/clinic cards without confirmed contact details
+    // (MaxHealth Multispecialty Clinic, Sri Sai Tejaswi Poly Clinic)
+    // to the bottom of the healthcare results list. Preserve verified-contact clinics.
+    const pinnedToBottom: typeof result = [];
+    const standardListings: typeof result = [];
+    for (const entry of result) {
+      const name = (entry.item.businessName || "").toLowerCase();
+      if (name.includes("maxhealth") || name.includes("sri sai tejaswi")) {
+        pinnedToBottom.push(entry);
+      } else {
+        standardListings.push(entry);
+      }
+    }
+    result = [...standardListings, ...pinnedToBottom];
+
     return result;
   }, [
     rawListings,
@@ -633,6 +752,7 @@ export default function HealthcareScreen() {
     selectedLocality,
     selectedPincode,
     distanceRadius,
+    activeCategory,
   ]);
 
   /* ---- Layout helpers ---- */
@@ -693,13 +813,46 @@ export default function HealthcareScreen() {
     }
   };
 
+  const appointmentEffectiveTimings =
+    appointmentModalListing?.consultationTimings ||
+    (appointmentModalListing?.is24Hours
+      ? "Open 24 Hours"
+      : appointmentModalListing?.openingTime
+      ? `${appointmentModalListing.openingTime}${appointmentModalListing.closingTime ? ` – ${appointmentModalListing.closingTime}` : ""}`
+      : null);
+
+  const appointmentEffectiveSetting =
+    appointmentModalListing?.consultationSetting ||
+    (appointmentModalListing?.facilityType === "doctor_clinic"
+      ? "Doctor Clinic (OPD)"
+      : appointmentModalListing?.facilityType === "government_hospital"
+      ? "Government Hospital"
+      : appointmentModalListing?.facilityType === "diagnostic_center"
+      ? "Diagnostic Center"
+      : appointmentModalListing?.facilityType === "private_clinic"
+      ? "Private Clinic / Hospital"
+      : null);
+
+  const appointmentFormattedAddress = appointmentModalListing
+    ? [
+        appointmentModalListing.address,
+        appointmentModalListing.locality,
+        appointmentModalListing.city,
+      ]
+        .filter(Boolean)
+        .join(", ") +
+      (appointmentModalListing.pincode
+        ? ` - ${appointmentModalListing.pincode}`
+        : "")
+    : "";
+
   return (
     <View style={s.page}>
       {/* ---- Sticky Header ---- */}
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top }]}>
         <View style={s.headerInner}>
           <Pressable
-            onPress={() => router.push("/")}
+            onPress={goBackToHome}
             style={({ pressed }) => [s.backBtn, { opacity: pressed ? 0.7 : 1 }]}
             accessibilityRole="button"
             accessibilityLabel="Go back to home"
@@ -868,11 +1021,27 @@ export default function HealthcareScreen() {
               </ScrollView>
             </View>
 
-            {/* Location Permission / Error Alert */}
+            {/* Location Permission / Error Alert with Retry Action */}
             {locError && (
-              <View style={s.locErrorBox}>
-                <Text style={s.locErrorIcon}>ℹ️</Text>
-                <Text style={s.locErrorText}>{locError}</Text>
+              <View style={[s.locErrorBox, isMobile && s.locErrorBoxMobile]}>
+                <View style={s.locErrorContent}>
+                  <Text style={s.locErrorIcon}>⚠️</Text>
+                  <Text style={s.locErrorText}>{locError}</Text>
+                </View>
+                <Pressable
+                  onPress={handleRequestDeviceLocation}
+                  disabled={locLoading}
+                  style={({ pressed }) => [
+                    s.locRetryBtn,
+                    { opacity: pressed || locLoading ? 0.7 : 1 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry device location"
+                >
+                  <Text style={s.locRetryBtnText}>
+                    {locLoading ? "Detecting..." : "🔄 Try Again"}
+                  </Text>
+                </Pressable>
               </View>
             )}
 
@@ -1067,7 +1236,7 @@ export default function HealthcareScreen() {
                 "We couldn't reach the server. Please check your connection and try again."
               }
               retryLabel="Retry"
-              onRetry={loadListings}
+              onRetry={() => loadListings(true)}
             />
           )}
 
@@ -1093,7 +1262,6 @@ export default function HealthcareScreen() {
                 setSelectedLocality("All");
                 setSelectedPincode("All");
                 setDistanceRadius("all");
-                loadListings("");
               }}
             />
           )}
@@ -1217,11 +1385,27 @@ export default function HealthcareScreen() {
           onRequestClose={() => setAppointmentModalListing(null)}
         >
           <Pressable
-            style={s.modalOverlay}
+            style={[
+              s.modalOverlay,
+              {
+                paddingTop: Math.max(insets.top + 16, 20),
+                paddingBottom: Math.max(insets.bottom + 16, 20),
+                paddingHorizontal: 16,
+              },
+            ]}
             onPress={() => setAppointmentModalListing(null)}
           >
             <Pressable
-              style={[s.modalCard, isMobile && s.modalCardMobile]}
+              style={[
+                s.modalCard,
+                isMobile && s.modalCardMobile,
+                {
+                  maxHeight: Math.min(
+                    height - (insets.top + insets.bottom + 36),
+                    660
+                  ),
+                },
+              ]}
               onPress={(e) => e.stopPropagation()}
               accessibilityLabel="Consultation Information Dialog"
             >
@@ -1230,7 +1414,7 @@ export default function HealthcareScreen() {
                 <View style={[s.modalIconWrap, isMobile && s.modalIconWrapMobile, { backgroundColor: "#DBEAFE" }]}>
                   <Text style={[s.modalIcon, isMobile && s.modalIconMobile]}>📋</Text>
                 </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
                   <Text style={[s.modalTitle, isMobile && s.modalTitleMobile]}>Consultation Details</Text>
                   <Text style={[s.modalSubtitle, isMobile && s.modalSubtitleMobile]} numberOfLines={2}>
                     {appointmentModalListing.doctorName
@@ -1240,7 +1424,12 @@ export default function HealthcareScreen() {
                 </View>
                 <Pressable
                   onPress={() => setAppointmentModalListing(null)}
-                  style={[s.modalCloseIconBtn, isMobile && s.modalCloseIconBtnMobile]}
+                  style={({ pressed }) => [
+                    s.modalCloseIconBtn,
+                    isMobile && s.modalCloseIconBtnMobile,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   accessibilityRole="button"
                   accessibilityLabel="Close dialog"
                 >
@@ -1248,11 +1437,22 @@ export default function HealthcareScreen() {
                 </Pressable>
               </View>
 
-              {/* Scrollable content area for mobile */}
+              {/* Scrollable content area */}
               <ScrollView
-                style={isMobile ? s.modalScrollArea : undefined}
+                style={[
+                  s.modalScrollArea,
+                  {
+                    maxHeight: Math.min(
+                      height - (insets.top + insets.bottom + 170),
+                      520
+                    ),
+                  },
+                ]}
+                contentContainerStyle={s.modalScrollContent}
                 showsVerticalScrollIndicator={true}
                 bounces={false}
+                nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="handled"
               >
                 {/* Consultation Details Box */}
                 <View style={[s.appointmentDetailBox, isMobile && s.appointmentDetailBoxMobile]}>
@@ -1266,6 +1466,13 @@ export default function HealthcareScreen() {
                           : ""}
                       </Text>
                     </View>
+                  ) : appointmentModalListing.qualifications ? (
+                    <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
+                      <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Qualifications:</Text>
+                      <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>
+                        {appointmentModalListing.qualifications}
+                      </Text>
+                    </View>
                   ) : null}
                   <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
                     <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Facility:</Text>
@@ -1275,26 +1482,23 @@ export default function HealthcareScreen() {
                     <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Specialty:</Text>
                     <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>{appointmentModalListing.category}</Text>
                   </View>
-                  {appointmentModalListing.consultationTimings ? (
+                  {appointmentEffectiveTimings ? (
                     <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
                       <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Timings:</Text>
-                      <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>{appointmentModalListing.consultationTimings}</Text>
+                      <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>{appointmentEffectiveTimings}</Text>
                     </View>
                   ) : null}
-                  {appointmentModalListing.consultationSetting ? (
+                  {appointmentEffectiveSetting ? (
                     <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
                       <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Setting:</Text>
-                      <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>{appointmentModalListing.consultationSetting}</Text>
+                      <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>{appointmentEffectiveSetting}</Text>
                     </View>
                   ) : null}
-                  {appointmentModalListing.address ? (
+                  {appointmentFormattedAddress ? (
                     <View style={[s.detailRow, isMobile && s.detailRowMobile]}>
                       <Text style={[s.detailLabel, isMobile && s.detailLabelMobile]}>Address:</Text>
                       <Text style={[s.detailValue, isMobile && s.detailValueMobile]}>
-                        {appointmentModalListing.address}
-                        {appointmentModalListing.locality ? `, ${appointmentModalListing.locality}` : ""}
-                        {appointmentModalListing.city ? `, ${appointmentModalListing.city}` : ""}
-                        {appointmentModalListing.pincode ? ` - ${appointmentModalListing.pincode}` : ""}
+                        {appointmentFormattedAddress}
                       </Text>
                     </View>
                   ) : null}
@@ -1751,21 +1955,49 @@ const s = StyleSheet.create({
   locErrorBox: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     backgroundColor: "#FFFBEB",
     borderRadius: 10,
-    padding: 10,
+    padding: 12,
     borderWidth: 1,
     borderColor: "#FDE68A",
+    gap: 10,
+    marginTop: 10,
+  },
+  locErrorBoxMobile: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 10,
+  },
+  locErrorContent: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
+    flex: 1,
   },
   locErrorIcon: {
-    fontSize: 14,
+    fontSize: 16,
   },
   locErrorText: {
     fontSize: 12,
     color: "#92400E",
     fontWeight: "600",
     flex: 1,
+    ...WEB_FONT,
+  },
+  locRetryBtn: {
+    backgroundColor: "#F59E0B",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "flex-end",
+  },
+  locRetryBtnText: {
+    color: WHITE,
+    fontSize: 12,
+    fontWeight: "700",
     ...WEB_FONT,
   },
   distanceFilterRow: {
@@ -2246,21 +2478,23 @@ const s = StyleSheet.create({
     maxWidth: 480,
     width: "100%",
     padding: 24,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
     ...(Platform.OS === "web"
       ? {
           boxShadow: "0 20px 40px rgba(15, 23, 42, 0.2)",
           maxHeight: "90vh" as any,
-          overflowY: "auto" as any,
         }
       : {}),
   },
   modalCardMobile: {
     padding: 16,
     borderRadius: 16,
+    width: "100%",
     ...(Platform.OS === "web"
       ? {
           maxHeight: "92vh" as any,
-          overflowY: "hidden" as any,
         }
       : {}),
   },
@@ -2268,7 +2502,8 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 18,
+    marginBottom: 16,
+    flexShrink: 0,
   },
   modalHeaderMobile: {
     gap: 8,
@@ -2281,11 +2516,13 @@ const s = StyleSheet.create({
     backgroundColor: "#D1FAE5",
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
   },
   modalIconWrapMobile: {
     width: 36,
     height: 36,
     borderRadius: 10,
+    flexShrink: 0,
   },
   modalIcon: {
     fontSize: 20,
@@ -2313,30 +2550,42 @@ const s = StyleSheet.create({
     marginTop: 1,
   },
   modalCloseIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: SLATE_100,
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
+    zIndex: 10,
   },
   modalCloseIconBtnMobile: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
   },
   modalCloseIconText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: SLATE_500,
+    fontSize: 16,
+    fontWeight: "800",
+    color: SLATE_700,
+    lineHeight: 18,
+    textAlign: "center",
   },
   modalScrollArea: {
     flexGrow: 0,
     flexShrink: 1,
+    width: "100%",
     ...(Platform.OS === "web"
-      ? { maxHeight: "60vh" as any, overflowY: "auto" as any }
+      ? {
+          maxHeight: "60vh" as any,
+          overflowY: "auto" as any,
+          WebkitOverflowScrolling: "touch" as any,
+        }
       : {}),
   } as any,
+  modalScrollContent: {
+    paddingBottom: 8,
+  },
   modalPhoneBox: {
     backgroundColor: "#F8FAFC",
     borderRadius: 14,

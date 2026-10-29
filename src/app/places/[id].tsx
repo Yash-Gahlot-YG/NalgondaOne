@@ -1,5 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
+import { useSafeBack } from "@/hooks/useSafeBack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Platform,
   Pressable,
@@ -93,6 +95,8 @@ export default function PlaceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
 
+  const insets = useSafeAreaInsets();
+  const goBackToPlaces = useSafeBack("/places");
   const isMobile = width < 700;
   const isTablet = width >= 700 && width < 1050;
 
@@ -103,7 +107,7 @@ export default function PlaceDetailScreen() {
   return (
     <ScrollView style={s.page} showsVerticalScrollIndicator={false}>
       {/* Navbar */}
-      <View style={s.navbar}>
+      <View style={[s.navbar, { paddingTop: insets.top }]}>
         <View style={s.navbarInner}>
           <Pressable onPress={() => router.push("/")}>
             <Text style={s.logo}>
@@ -111,11 +115,11 @@ export default function PlaceDetailScreen() {
             </Text>
           </Pressable>
           <View style={s.navLinks}>
-            <Pressable onPress={() => router.push("/")}>
-              <Text style={s.navLink}>← Back to Home</Text>
+            <Pressable onPress={goBackToPlaces}>
+              <Text style={s.navLink}>← Places</Text>
             </Pressable>
-            <Pressable onPress={() => router.push("/places")}>
-              <Text style={s.navLink}>All Places</Text>
+            <Pressable onPress={() => router.push("/")}>
+              <Text style={s.navLink}>Home</Text>
             </Pressable>
           </View>
         </View>

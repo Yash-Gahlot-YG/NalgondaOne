@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/context/AuthContext";
 
 /* ================================================================ */
@@ -160,6 +161,7 @@ const footerLinks = {
 /* ================================================================ */
 
 export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
   const searchInputRef = useRef<TextInput>(null);
@@ -255,7 +257,7 @@ export default function HomeScreen() {
       {/* NAVBAR                                                       */}
       {/* ============================================================ */}
 
-      <View style={s.navbar}>
+      <View style={[s.navbar, { paddingTop: Math.max(insets.top, 0) }]}>
         {profileDropdownOpen && (
           <Pressable
             style={s.dropdownBackdrop}
@@ -265,14 +267,14 @@ export default function HomeScreen() {
           />
         )}
 
-        <View style={s.navbarInner}>
+        <View style={[s.navbarInner, isMobile && s.navbarInnerMobile]}>
           <Pressable
             onPress={() => {
               setProfileDropdownOpen(false);
               router.push("/");
             }}
           >
-            <Text style={s.logo}>
+            <Text style={[s.logo, isMobile && s.logoMobile]}>
               Nalgonda<Text style={s.logoAccent}>One</Text>
             </Text>
           </Pressable>
@@ -521,7 +523,7 @@ export default function HomeScreen() {
         <View style={s.heroBlob2} />
         <View style={s.heroBlob3} />
 
-        <ContentWrapper style={{ zIndex: 2, alignItems: "center", paddingVertical: isMobile ? 48 : 90 }}>
+        <ContentWrapper style={{ zIndex: 2, alignItems: "center", paddingTop: isMobile ? 36 : 64, paddingBottom: isMobile ? 32 : 52 }}>
           {/* Badge */}
           <View style={s.heroBadge}>
             <View style={s.heroBadgeDot} />
@@ -564,7 +566,14 @@ export default function HomeScreen() {
               { width: "100%", maxWidth: isMobile ? "100%" : isTablet ? "85%" : 680 },
             ]}
           >
-            <Text style={[s.searchIcon, isMobile && s.searchIconMobile]}>⌕</Text>
+            <Pressable
+              onPress={handleSearch}
+              style={s.searchIconWrap}
+              accessibilityRole="button"
+              accessibilityLabel="Search"
+            >
+              <Text style={[s.searchIcon, isMobile && s.searchIconMobile]}>⌕</Text>
+            </Pressable>
             <TextInput
               ref={searchInputRef}
               value={searchText}
@@ -576,18 +585,30 @@ export default function HomeScreen() {
               returnKeyType="search"
               accessibilityLabel="Search NalgondaOne"
             />
-            <Pressable
-              style={({ pressed }) => [
-                s.searchBtn,
-                isMobile && s.searchBtnMobile,
-                { opacity: pressed ? 0.85 : 1 },
-              ]}
-              onPress={handleSearch}
-              accessibilityRole="button"
-              accessibilityLabel="Search"
-            >
-              <Text style={[s.searchBtnText, isMobile && s.searchBtnTextMobile]}>Search</Text>
-            </Pressable>
+            {searchText.length > 0 && (
+              <Pressable
+                onPress={() => setSearchText("")}
+                style={[s.clearBtn, isMobile && s.clearBtnMobile]}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search text"
+              >
+                <Text style={s.clearText}>✕</Text>
+              </Pressable>
+            )}
+            {!isMobile && (
+              <Pressable
+                style={({ pressed }) => [
+                  s.searchBtn,
+                  isMobile && s.searchBtnMobile,
+                  { opacity: pressed ? 0.85 : 1 },
+                ]}
+                onPress={handleSearch}
+                accessibilityRole="button"
+                accessibilityLabel="Search"
+              >
+                <Text style={[s.searchBtnText, isMobile && s.searchBtnTextMobile]}>Search</Text>
+              </Pressable>
+            )}
           </View>
 
           {/* Quick tags */}
@@ -611,19 +632,6 @@ export default function HomeScreen() {
             ))}
           </View>
 
-          {/* Stats */}
-          <View style={[s.statsRow, { flexDirection: isMobile ? "column" : "row" }]}>
-            {[
-              { num: "500+", label: "Local Businesses" },
-              { num: "50+", label: "Categories" },
-              { num: "10K+", label: "Happy Users" },
-            ].map((stat) => (
-              <View key={stat.label} style={s.statItem}>
-                <Text style={s.statNum}>{stat.num}</Text>
-                <Text style={s.statLabel}>{stat.label}</Text>
-              </View>
-            ))}
-          </View>
         </ContentWrapper>
       </View>
 
@@ -987,12 +995,19 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
   },
+  navbarInnerMobile: {
+    height: 58,
+    paddingHorizontal: 16,
+  },
   logo: {
     fontSize: 24,
     fontWeight: "900",
     color: SLATE_900,
     letterSpacing: -0.8,
     ...WEB_FONT,
+  },
+  logoMobile: {
+    fontSize: 20,
   },
   logoAccent: {
     color: BRAND,
@@ -1358,18 +1373,37 @@ const s = StyleSheet.create({
     height: 52,
     marginTop: 22,
     borderRadius: 14,
-    paddingLeft: 12,
-    paddingRight: 4,
+    paddingLeft: 14,
+    paddingRight: 10,
+  },
+  searchIconWrap: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingRight: 6,
   },
   searchIcon: {
-    fontSize: 26,
+    fontSize: 24,
     color: SLATE_500,
-    marginRight: 8,
     flexShrink: 0,
   },
   searchIconMobile: {
     fontSize: 20,
-    marginRight: 6,
+    color: "#64748B",
+  },
+  clearBtn: {
+    padding: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 4,
+  },
+  clearBtnMobile: {
+    padding: 4,
+    marginRight: 2,
+  },
+  clearText: {
+    fontSize: 14,
+    color: "#94A3B8",
+    fontWeight: "700",
   },
   searchInput: {
     flex: 1,
@@ -1431,27 +1465,6 @@ const s = StyleSheet.create({
     ...WEB_FONT,
   },
 
-  /* stats row */
-  statsRow: {
-    marginTop: 40,
-    gap: 30,
-    alignItems: "center",
-  },
-  statItem: {
-    alignItems: "center",
-  },
-  statNum: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: SLATE_900,
-    ...WEB_FONT,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: SLATE_500,
-    marginTop: 2,
-    ...WEB_FONT,
-  },
 
   /* ---- sections shared ---- */
   sectionWrap: {

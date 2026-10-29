@@ -1,5 +1,6 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useSafeBack } from "@/hooks/useSafeBack";
 import {
   Platform,
   Pressable,
@@ -9,6 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BRAND,
   SLATE_900,
@@ -32,6 +34,8 @@ import {
   withCalculatedDistance,
   applyFilter,
   fetchApprovedProviders,
+  getSelectedServicesLocation,
+  setSelectedServicesLocation,
   type LocationOption,
   type ServiceProvider,
 } from "@/data/services";
@@ -50,7 +54,7 @@ import ErrorState from "@/components/services/ErrorState";
 const filterOptions = [
   { label: "All", value: "all" },
   { label: "Nearby", value: "nearby" },
-  { label: "Rating", value: "rating" },
+
   { label: "Verified", value: "verified" },
 ];
 
@@ -59,17 +63,34 @@ const filterOptions = [
 /* ================================================================ */
 
 export default function ServicesHomeScreen() {
+  const insets = useSafeAreaInsets();
+  const goBackToHome = useSafeBack("/");
   const { width } = useWindowDimensions();
   const isMobile = isMobileWidth(width);
   const isTablet = isTabletWidth(width);
 
+  const routeParams = useLocalSearchParams<{ locationId?: string }>();
   const [searchText, setSearchText] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [showAllCategories, setShowAllCategories] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<LocationOption>(
-    nalgondaLocations[0]
-  );
+  const [selectedLocation, setSelectedLocation] = useState<LocationOption>(() => {
+    if (routeParams.locationId) {
+      const found = nalgondaLocations.find((l) => l.id === routeParams.locationId);
+      if (found) return found;
+    }
+    return getSelectedServicesLocation();
+  });
   const [locationModalVisible, setLocationModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (routeParams.locationId) {
+      const found = nalgondaLocations.find((l) => l.id === routeParams.locationId);
+      if (found && found.id !== selectedLocation.id) {
+        setSelectedLocation(found);
+        setSelectedServicesLocation(found);
+      }
+    }
+  }, [routeParams.locationId, selectedLocation.id]);
 
   /* ---- Approved providers from API ---- */
   const [approvedProviders, setApprovedProviders] = useState<ServiceProvider[]>([]);
@@ -138,9 +159,12 @@ export default function ServicesHomeScreen() {
     if (!searchText.trim()) return;
     const results = searchServices(searchText, approvedProviders);
     if (results.categories.length === 1 && results.providers.length === 0) {
-      router.push(`/services/${results.categories[0].slug}` as any);
+      router.push({
+        pathname: "/services/[category]",
+        params: { category: results.categories[0].slug, locationId: selectedLocation.id },
+      } as any);
     }
-  }, [searchText, approvedProviders]);
+  }, [searchText, approvedProviders, selectedLocation.id]);
 
   /* ---- Categories to display ---- */
   const displayCategories = showAllCategories
@@ -153,6 +177,12 @@ export default function ServicesHomeScreen() {
     if (isTablet) return "48%";
     return "23.5%";
   };
+
+  /* ---- Responsive grid calculations for All Services ---- */
+  const gridCols = isMobile ? 2 : isTablet ? 4 : 6;
+  const gridGap = isMobile ? 12 : 14;
+  const contentWidth = Math.min(width, CONTENT_MAX_WIDTH) - contentPad * 2;
+  const categoryCardWidth = Math.floor((contentWidth - gridGap * (gridCols - 1)) / gridCols);
 
   /* ---- Content wrapper ---- */
   const ContentWrap = ({
@@ -180,12 +210,13 @@ export default function ServicesHomeScreen() {
   return (
     <View style={s.page}>
       {/* ---- Sticky Header ---- */}
-      <View style={s.header}>
-        <View style={s.headerInner}>
+      <View style={[s.header, { paddingTop: insets.top }]}>
+        <View style={[s.headerInner, isMobile && s.headerInnerMobile]}>
           <Pressable
-            onPress={() => router.push("/")}
+            onPress={goBackToHome}
             style={({ pressed }) => [
               s.backBtn,
+              isMobile && s.backBtnMobile,
               { opacity: pressed ? 0.7 : 1 },
             ]}
             accessibilityRole="button"
@@ -193,8 +224,8 @@ export default function ServicesHomeScreen() {
           >
             <Text style={s.backArrow}>←</Text>
           </Pressable>
-          <Pressable onPress={() => router.push("/")} accessibilityRole="link">
-            <Text style={s.headerLogo}>
+          <Pressable onPress={() => router.push("/")} accessibilityRole="link" style={{ flexShrink: 1 }}>
+            <Text style={[s.headerLogo, isMobile && s.headerLogoMobile]} numberOfLines={1}>
               Nalgonda<Text style={s.headerLogoAccent}>One</Text>
             </Text>
           </Pressable>
@@ -202,12 +233,15 @@ export default function ServicesHomeScreen() {
             onPress={() => router.push("/add-business" as any)}
             style={({ pressed }) => [
               s.headerAddBtn,
+              isMobile && s.headerAddBtnMobile,
               { opacity: pressed ? 0.8 : 1 },
             ]}
             accessibilityRole="button"
             accessibilityLabel="Add your business"
           >
-            <Text style={s.headerAddBtnText}>+ Add Business</Text>
+            <Text style={[s.headerAddBtnText, isMobile && s.headerAddBtnTextMobile]}>
+              {width < 380 ? "+ Add" : "+ Add Business"}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -264,7 +298,10 @@ export default function ServicesHomeScreen() {
         <LocationSelectorModal
           visible={locationModalVisible}
           selectedLocation={selectedLocation}
-          onSelect={(loc) => setSelectedLocation(loc)}
+          onSelect={(loc) => {
+            setSelectedServicesLocation(loc);
+            setSelectedLocation(loc);
+          }}
           onClose={() => setLocationModalVisible(false)}
         />
 
@@ -289,8 +326,13 @@ export default function ServicesHomeScreen() {
                     <ServiceCategoryCard
                       key={cat.id}
                       category={cat}
+                      width={124}
+                      height={116}
                       onPress={() =>
-                        router.push(`/services/${cat.slug}` as any)
+                        router.push({
+                          pathname: "/services/[category]",
+                          params: { category: cat.slug, locationId: selectedLocation.id },
+                        } as any)
                       }
                       size="compact"
                     />
@@ -366,13 +408,13 @@ export default function ServicesHomeScreen() {
 
             {/* Categories grid */}
             {showAllCategories ? (
-              /* Full grid view for "More Services" */
+              /* Full 2-column responsive grid view for "More Services" */
               <ContentWrap style={{ paddingTop: 16, paddingBottom: 16 }}>
                 <View
                   style={[
                     s.allCatGrid,
                     {
-                      gap: isMobile ? 10 : 14,
+                      gap: gridGap,
                     },
                   ]}
                 >
@@ -380,19 +422,19 @@ export default function ServicesHomeScreen() {
                     <View
                       key={cat.id}
                       style={{
-                        width: isMobile
-                          ? "31%"
-                          : isTablet
-                          ? "18.5%"
-                          : "11.5%",
+                        width: categoryCardWidth,
                       }}
                     >
                       <ServiceCategoryCard
                         category={cat}
+                        width="100%"
+                        height={124}
                         onPress={() =>
-                          router.push(`/services/${cat.slug}` as any)
+                          router.push({
+                            pathname: "/services/[category]",
+                            params: { category: cat.slug, locationId: selectedLocation.id },
+                          } as any)
                         }
-                        size="compact"
                       />
                     </View>
                   ))}
@@ -418,8 +460,13 @@ export default function ServicesHomeScreen() {
                   <ServiceCategoryCard
                     key={cat.id}
                     category={cat}
+                    width={140}
+                    height={124}
                     onPress={() =>
-                      router.push(`/services/${cat.slug}` as any)
+                      router.push({
+                        pathname: "/services/[category]",
+                        params: { category: cat.slug, locationId: selectedLocation.id },
+                      } as any)
                     }
                   />
                 ))}
@@ -542,6 +589,11 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
   },
+  headerInnerMobile: {
+    height: 56,
+    paddingHorizontal: 14,
+    gap: 8,
+  },
   backBtn: {
     width: 40,
     height: 40,
@@ -549,6 +601,12 @@ const s = StyleSheet.create({
     backgroundColor: SLATE_100,
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
+  },
+  backBtnMobile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
   },
   backArrow: {
     fontSize: 20,
@@ -562,6 +620,10 @@ const s = StyleSheet.create({
     letterSpacing: -0.5,
     ...WEB_FONT,
   },
+  headerLogoMobile: {
+    fontSize: 18,
+    letterSpacing: -0.4,
+  },
   headerLogoAccent: {
     color: BRAND,
   },
@@ -570,12 +632,21 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 10,
+    flexShrink: 0,
+  },
+  headerAddBtnMobile: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   headerAddBtnText: {
     color: WHITE,
     fontSize: 12,
     fontWeight: "800",
     ...WEB_FONT,
+  },
+  headerAddBtnTextMobile: {
+    fontSize: 11,
   },
 
   /* ---- hero ---- */

@@ -1,5 +1,7 @@
 import { router } from "expo-router";
 import { Image as ExpoImage } from "expo-image";
+import { useSafeBack } from "@/hooks/useSafeBack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Pressable,
   ScrollView,
@@ -48,6 +50,8 @@ const places = [
 ];
 
 export default function PlacesScreen() {
+  const insets = useSafeAreaInsets();
+  const goBackToHome = useSafeBack("/");
   const { width } = useWindowDimensions();
 
   const isMobile = width < 700;
@@ -59,9 +63,9 @@ export default function PlacesScreen() {
     <ScrollView style={styles.page} showsVerticalScrollIndicator={false}>
       {/* HEADER */}
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={[styles.headerInner, { width: contentWidth as any }]}>
-          <Pressable onPress={() => router.push("/")}>
+          <Pressable onPress={goBackToHome}>
             <Text style={styles.logo}>
               Nalgonda<Text style={styles.logoAccent}>One</Text>
             </Text>

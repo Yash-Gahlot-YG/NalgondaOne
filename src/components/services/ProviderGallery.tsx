@@ -29,6 +29,7 @@ function GalleryImage({ imageKey, index, providerName, isMockData }: { imageKey:
         source={source}
         style={s.image}
         contentFit="cover"
+        cachePolicy="memory-disk"
         transition={200}
         onError={() => setError(true)}
         accessibilityLabel={`${providerName} — demo photo ${index + 1}`}

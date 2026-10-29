@@ -13,6 +13,8 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
+credentials.json
 *.p8
 *.p12
 *.key
@@ -42,3 +44,9 @@ example
 # generated native folders
 /ios
 /android
+
+# Local database backups
+backend/backups/
+
+# Local database backups
+backend/backups/

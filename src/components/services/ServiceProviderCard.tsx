@@ -51,6 +51,7 @@ export default function ServiceProviderCard({
             source={img}
             style={s.img}
             contentFit="cover"
+            cachePolicy="memory-disk"
             transition={200}
             onError={() => setImgError(true)}
             accessibilityLabel={`${provider.name} — demo photo`}
@@ -116,16 +117,7 @@ export default function ServiceProviderCard({
           📍 {provider.city}
         </Text>
 
-        {/* Rating row */}
-        <View style={s.ratingRow}>
-          <Text style={s.ratingStar}>⭐</Text>
-          <Text style={s.ratingValue}>{provider.rating}</Text>
-          {provider.isMockData ? (
-            <Text style={s.mockRatingText}>(Demo)</Text>
-          ) : (
-            <Text style={s.reviewCount}>({provider.reviewCount})</Text>
-          )}
-        </View>
+
 
         {/* CTA */}
         <View style={s.viewBtn}>
@@ -266,32 +258,7 @@ const s = StyleSheet.create({
     marginTop: 4,
     ...WEB_FONT,
   },
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 6,
-    gap: 4,
-  },
-  ratingStar: {
-    fontSize: 12,
-  },
-  ratingValue: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: SLATE_900,
-    ...WEB_FONT,
-  },
-  reviewCount: {
-    fontSize: 12,
-    color: SLATE_500,
-    ...WEB_FONT,
-  },
-  mockRatingText: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#D97706",
-    ...WEB_FONT,
-  },
+
 
   /* CTA */
   viewBtn: {

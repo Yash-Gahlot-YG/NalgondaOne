@@ -35,6 +35,23 @@ export interface HealthcareFilterOptions {
   facilityType?: string;
   pincode?: string;
   locality?: string;
+  forceRefresh?: boolean;
+}
+
+/** In-memory cache for healthcare listings to avoid slow repeated network calls */
+const cachedListingsMap = new Map<string, { data: BusinessDocument[]; timestamp: number }>();
+const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
+export function clearHealthcareCache(): void {
+  cachedListingsMap.clear();
+}
+
+export function getCachedHealthcare(key: string = "all"): BusinessDocument[] | null {
+  const cached = cachedListingsMap.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data;
+  }
+  return null;
 }
 
 /**
@@ -177,6 +194,16 @@ export async function fetchHealthcareListings(
   }
 
   const queryString = params.toString();
+  const cacheKey = queryString || "all";
+
+  // Check in-memory cache first if forceRefresh is not requested
+  if (!options.forceRefresh) {
+    const cached = getCachedHealthcare(cacheKey);
+    if (cached) {
+      return { success: true, data: cached };
+    }
+  }
+
   const url = `${API_BASE_URL}/api/healthcare/listings${queryString ? `?${queryString}` : ""}`;
 
   let response: Response;
@@ -188,6 +215,7 @@ export async function fetchHealthcareListings(
     // If dedicated endpoint fetch fails at network level, attempt approved businesses fallback
     const fallback = await fetchFromApprovedBusinesses(options);
     if (fallback.success) {
+      cachedListingsMap.set(cacheKey, { data: fallback.data, timestamp: Date.now() });
       return fallback;
     }
     return {
@@ -198,7 +226,11 @@ export async function fetchHealthcareListings(
 
   // If dedicated endpoint is not found (404), fall back to /api/businesses/approved
   if (response.status === 404) {
-    return await fetchFromApprovedBusinesses(options);
+    const fallback = await fetchFromApprovedBusinesses(options);
+    if (fallback.success) {
+      cachedListingsMap.set(cacheKey, { data: fallback.data, timestamp: Date.now() });
+    }
+    return fallback;
   }
 
   let json: HealthcareListingsResponse | ApiErrorResponse;
@@ -206,7 +238,11 @@ export async function fetchHealthcareListings(
     json = await response.json();
   } catch {
     // Response was not JSON (e.g. HTML error page) — try fallback
-    return await fetchFromApprovedBusinesses(options);
+    const fallback = await fetchFromApprovedBusinesses(options);
+    if (fallback.success) {
+      cachedListingsMap.set(cacheKey, { data: fallback.data, timestamp: Date.now() });
+    }
+    return fallback;
   }
 
   if (!response.ok || !json.success) {
@@ -216,5 +252,7 @@ export async function fetchHealthcareListings(
     };
   }
 
-  return { success: true, data: (json as HealthcareListingsResponse).data };
+  const data = (json as HealthcareListingsResponse).data;
+  cachedListingsMap.set(cacheKey, { data, timestamp: Date.now() });
+  return { success: true, data };
 }

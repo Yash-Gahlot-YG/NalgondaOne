@@ -1,14 +1,16 @@
 import { router } from "expo-router";
+import { useSafeBack } from "@/hooks/useSafeBack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View, Platform } from "react-native";
 import { useState } from "react";
 
 const allCategories = [
+  { icon: "🏥", title: "Healthcare", desc: "Hospitals, clinics, pharmacies & labs", route: "/healthcare", bg: "#F0F9FF", accent: "#0EA5E9" },
+  { icon: "🔧", title: "Services", desc: "Plumbing, electricians, repairs & more", route: "/services", bg: "#F5F3FF", accent: "#8B5CF6" },
   { icon: "🍴", title: "Food & Cafes", desc: "Restaurants, street food, cafes & bakeries", route: "/food", bg: "#FFF7ED", accent: "#FB923C" },
   { icon: "🏨", title: "Hotels & Stays", desc: "Hotels, resorts, lodges & guest houses", route: "/hotels", bg: "#EFF6FF", accent: "#3B82F6" },
   { icon: "📍", title: "Places", desc: "Tourist spots, forts, temples & landmarks", route: "/places", bg: "#ECFDF5", accent: "#10B981" },
   { icon: "🛍️", title: "Shopping", desc: "Malls, markets, local shops & boutiques", route: "/shopping", bg: "#FDF2F8", accent: "#EC4899" },
-  { icon: "🏥", title: "Healthcare", desc: "Hospitals, clinics, pharmacies & labs", route: "/healthcare", bg: "#F0F9FF", accent: "#0EA5E9" },
-  { icon: "🔧", title: "Services", desc: "Plumbing, electricians, repairs & more", route: "/services", bg: "#F5F3FF", accent: "#8B5CF6" },
   { icon: "🎉", title: "Events", desc: "Festivals, cultural programs & meetups", route: "/events", bg: "#FEF9C3", accent: "#EAB308" },
   { icon: "🎓", title: "Education", desc: "Schools, colleges, coaching & tuitions", route: "/places", bg: "#F0FDF4", accent: "#22C55E" },
   { icon: "🏋️", title: "Fitness & Gym", desc: "Gyms, yoga studios & sports centers", route: "/places", bg: "#FFF1F2", accent: "#F43F5E" },
@@ -17,10 +19,6 @@ const allCategories = [
   { icon: "🏠", title: "Real Estate", desc: "Houses, plots, rentals & PG rooms", route: "/places", bg: "#EDE9FE", accent: "#7C3AED" },
 ];
 
-const popularSearches = [
-  "Biryani near me", "Best hotels", "Nagarjuna Sagar", "Hospitals",
-  "Weekend getaways", "Local markets", "Temples", "Shopping malls",
-];
 
 const WEB_FONT = Platform.select({
   web: { fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif" },
@@ -28,6 +26,8 @@ const WEB_FONT = Platform.select({
 });
 
 export default function ExploreScreen() {
+  const insets = useSafeAreaInsets();
+  const goBackToHome = useSafeBack("/");
   const { width } = useWindowDimensions();
   const [search, setSearch] = useState("");
 
@@ -44,9 +44,9 @@ export default function ExploreScreen() {
   return (
     <ScrollView style={s.page} showsVerticalScrollIndicator={false}>
       {/* Navbar */}
-      <View style={s.navbar}>
+      <View style={[s.navbar, { paddingTop: insets.top }]}>
         <View style={s.navInner}>
-          <Pressable onPress={() => router.push("/")}>
+          <Pressable onPress={goBackToHome}>
             <Text style={s.logo}>Nalgonda<Text style={s.logoAccent}>One</Text></Text>
           </Pressable>
           {!isMobile && (
@@ -82,19 +82,6 @@ export default function ExploreScreen() {
         </View>
       </View>
 
-      {/* Popular Searches */}
-      <View style={s.section}>
-        <View style={{ maxWidth: 1200, width: "100%", alignSelf: "center", paddingHorizontal: isMobile ? 20 : isTablet ? 36 : 0 }}>
-          <Text style={s.sectionLabel}>Popular Searches</Text>
-          <View style={s.tagsRow}>
-            {popularSearches.map((tag) => (
-              <Pressable key={tag} style={({ pressed }) => [s.tag, { opacity: pressed ? 0.7 : 1 }]}>
-                <Text style={s.tagText}>{tag}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      </View>
 
       {/* Categories Grid */}
       <View style={s.section}>
@@ -203,13 +190,6 @@ const s = StyleSheet.create({
   section: { paddingTop: 40, paddingBottom: 20 },
   sectionLabel: { fontSize: 18, fontWeight: "800", color: SLATE_900, marginBottom: 16, ...WEB_FONT },
 
-  /* popular searches */
-  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  tag: {
-    backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0",
-    paddingHorizontal: 16, paddingVertical: 9, borderRadius: 30,
-  },
-  tagText: { fontSize: 13, fontWeight: "600", color: SLATE_500, ...WEB_FONT },
 
   /* grid */
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 16 },

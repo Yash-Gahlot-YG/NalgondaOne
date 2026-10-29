@@ -1,4 +1,14 @@
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BRAND,
   SLATE_900,
@@ -10,7 +20,6 @@ import {
   SLATE_50,
   WHITE,
   WEB_FONT,
-  CONTENT_MAX_WIDTH,
 } from "@/constants/serviceTheme";
 import { nalgondaLocations, LocationOption } from "@/data/services";
 
@@ -27,7 +36,15 @@ export default function LocationSelectorModal({
   onSelect,
   onClose,
 }: LocationSelectorModalProps) {
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
   if (!visible) return null;
+
+  // Compute safe vertical bounds for the modal dialog
+  const topInset = Math.max(insets.top, 20);
+  const bottomInset = Math.max(insets.bottom, 20);
+  const maxModalHeight = Math.min(height - (topInset + bottomInset + 32), 620);
 
   return (
     <Modal
@@ -35,17 +52,26 @@ export default function LocationSelectorModal({
       transparent={true}
       visible={visible}
       onRequestClose={onClose}
+      statusBarTranslucent={true}
     >
-      <View style={s.backdrop}>
+      <View
+        style={[
+          s.backdrop,
+          {
+            paddingTop: topInset,
+            paddingBottom: bottomInset,
+          },
+        ]}
+      >
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
           accessibilityLabel="Close modal overlay"
         />
-        <View style={s.modalCard}>
+        <View style={[s.modalCard, { maxHeight: maxModalHeight }]}>
           {/* Header */}
           <View style={s.header}>
-            <View>
+            <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={s.title}>Select Location</Text>
               <Text style={s.subtitle}>
                 Showing services around Nalgonda district
@@ -57,13 +83,22 @@ export default function LocationSelectorModal({
                 s.closeBtn,
                 { opacity: pressed ? 0.7 : 1 },
               ]}
+              accessibilityRole="button"
+              accessibilityLabel="Close location modal"
             >
               <Text style={s.closeIcon}>✕</Text>
             </Pressable>
           </View>
 
-          {/* Location List */}
-          <View style={s.list}>
+          {/* Location List (independently scrollable) */}
+          <ScrollView
+            style={s.scrollView}
+            contentContainerStyle={s.scrollContent}
+            showsVerticalScrollIndicator={true}
+            bounces={false}
+            nestedScrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
+          >
             {nalgondaLocations.map((loc) => {
               const isSelected = selectedLocation.id === loc.id;
               return (
@@ -78,6 +113,9 @@ export default function LocationSelectorModal({
                     isSelected && s.locationItemSelected,
                     { opacity: pressed ? 0.8 : 1 },
                   ]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`${loc.name}, ${loc.area}`}
                 >
                   <View style={s.locLeft}>
                     <View
@@ -88,13 +126,14 @@ export default function LocationSelectorModal({
                     >
                       <Text style={s.pinIcon}>📍</Text>
                     </View>
-                    <View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={s.locNameRow}>
                         <Text
                           style={[
                             s.locName,
                             isSelected && s.locNameSelected,
                           ]}
+                          numberOfLines={1}
                         >
                           {loc.name}
                         </Text>
@@ -104,7 +143,9 @@ export default function LocationSelectorModal({
                           </View>
                         )}
                       </View>
-                      <Text style={s.locArea}>{loc.area}</Text>
+                      <Text style={s.locArea} numberOfLines={1}>
+                        {loc.area}
+                      </Text>
                     </View>
                   </View>
 
@@ -119,7 +160,7 @@ export default function LocationSelectorModal({
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -132,7 +173,7 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(15, 23, 42, 0.6)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    paddingHorizontal: 20,
     ...(Platform.OS === "web"
       ? {
           backdropFilter: "blur(4px)" as any,
@@ -145,9 +186,12 @@ const s = StyleSheet.create({
     maxWidth: 480,
     backgroundColor: WHITE,
     borderRadius: 24,
-    padding: 24,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     borderWidth: 1,
     borderColor: SLATE_200,
+    flexDirection: "column",
     ...(Platform.OS === "web"
       ? {
           boxShadow: "0 20px 40px rgba(0,0,0,0.18)",
@@ -159,11 +203,12 @@ const s = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 20,
-    paddingBottom: 16,
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: SLATE_100,
+    flexShrink: 0,
   },
   title: {
     fontSize: 20,
@@ -185,20 +230,26 @@ const s = StyleSheet.create({
     backgroundColor: SLATE_100,
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
   },
   closeIcon: {
     fontSize: 14,
     fontWeight: "700",
     color: SLATE_700,
   },
-  list: {
+  scrollView: {
+    flexShrink: 1,
+    flexGrow: 0,
+  },
+  scrollContent: {
     gap: 8,
+    paddingBottom: 12,
   },
   locationItem: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1.5,
@@ -213,6 +264,8 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    flex: 1,
+    marginRight: 10,
   },
   pinWrap: {
     width: 38,
@@ -223,6 +276,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: SLATE_200,
+    flexShrink: 0,
   },
   pinWrapSelected: {
     borderColor: "#BFDBFE",
@@ -235,6 +289,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    flexWrap: "wrap",
   },
   locName: {
     fontSize: 15,
@@ -244,6 +299,7 @@ const s = StyleSheet.create({
   },
   locNameSelected: {
     color: BRAND,
+    fontWeight: "800",
   },
   popularTag: {
     backgroundColor: "#FEF3C7",
@@ -264,21 +320,22 @@ const s = StyleSheet.create({
     ...WEB_FONT,
   },
   radioCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
     borderColor: SLATE_400,
     justifyContent: "center",
     alignItems: "center",
+    flexShrink: 0,
   },
   radioCircleSelected: {
     borderColor: BRAND,
   },
   radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: BRAND,
   },
 });

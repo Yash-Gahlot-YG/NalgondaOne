@@ -1,13 +1,15 @@
-import { router } from "expo-router";
+import { useSafeBack } from "@/hooks/useSafeBack";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 export default function ComingSoonScreen({ title = "Coming Soon" }: { title?: string }) {
+  const goBackToHome = useSafeBack("/");
+
   return (
     <View style={s.container}>
       <Text style={s.emoji}>🚧</Text>
       <Text style={s.title}>{title}</Text>
       <Text style={s.sub}>This section is under development.</Text>
-      <Pressable style={s.btn} onPress={() => router.push("/")}>
+      <Pressable style={s.btn} onPress={goBackToHome}>
         <Text style={s.btnText}>← Back to Home</Text>
       </Pressable>
     </View>

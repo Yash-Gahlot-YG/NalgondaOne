@@ -1,5 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useSafeBack } from "@/hooks/useSafeBack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Platform,
   Pressable,
@@ -29,6 +31,7 @@ import {
   nalgondaLocations,
   withCalculatedDistance,
   normalizeCategorySlug,
+  getSelectedServicesLocation,
   type ServiceProvider,
 } from "@/data/services";
 import ServiceSearchBar from "@/components/services/ServiceSearchBar";
@@ -53,7 +56,31 @@ const filterOptions = [
 /* ================================================================ */
 
 export default function CategoryScreen() {
-  const { category: slug } = useLocalSearchParams<{ category: string }>();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ category: string; locationId?: string }>();
+  const rawSlug = params.category;
+  const slug = typeof rawSlug === "string" ? decodeURIComponent(rawSlug).trim() : (Array.isArray(rawSlug) ? rawSlug[0] : "");
+
+  // Resolve active location from query parameter or shared services session store
+  const selectedLocation = useMemo(() => {
+    if (params.locationId) {
+      const found = nalgondaLocations.find((l) => l.id === params.locationId);
+      if (found) return found;
+    }
+    return getSelectedServicesLocation();
+  }, [params.locationId]);
+
+  const handleBackToServices = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace({
+        pathname: "/services",
+        params: { locationId: selectedLocation.id },
+      } as any);
+    }
+  };
+
   const { width } = useWindowDimensions();
   const isMobile = isMobileWidth(width);
   const isTablet = isTabletWidth(width);
@@ -103,10 +130,10 @@ export default function CategoryScreen() {
   if (!categoryInfo) {
     return (
       <View style={s.page}>
-        <View style={s.header}>
+        <View style={[s.header, { paddingTop: insets.top }]}>
           <View style={s.headerInner}>
             <Pressable
-              onPress={() => router.push("/services")}
+              onPress={handleBackToServices}
               style={({ pressed }) => [
                 s.backBtn,
                 { opacity: pressed ? 0.7 : 1 },
@@ -125,7 +152,7 @@ export default function CategoryScreen() {
           title="Category not found"
           description="This service category doesn't exist or may have been removed."
           retryLabel="← Back to Services"
-          onRetry={() => router.push("/services")}
+          onRetry={handleBackToServices}
         />
       </View>
     );
@@ -135,8 +162,8 @@ export default function CategoryScreen() {
 
   /* ---- Get & filter providers ---- */
   const providers = useMemo(() => {
-    // Get mock providers for this category
-    let list = getProvidersByCategory(slug ?? "");
+    // Get mock providers for this category and location
+    let list = getProvidersByCategory(slug ?? "", selectedLocation.name);
 
     // Merge approved providers that belong to this category
     const approvedForCategory = approvedProviders.filter(
@@ -160,15 +187,18 @@ export default function CategoryScreen() {
       );
     }
 
-    // Calculate distance from default origin
-    const defaultOrigin = nalgondaLocations[0];
+    // Calculate distance from active selected location
     const withDist = list.map((p) =>
-      withCalculatedDistance(p, defaultOrigin.latitude, defaultOrigin.longitude)
+      withCalculatedDistance(
+        p,
+        selectedLocation.latitude,
+        selectedLocation.longitude
+      )
     );
 
     // Apply tab filter
     return applyFilter(withDist, activeFilter as any);
-  }, [slug, searchText, activeFilter, approvedProviders]);
+  }, [slug, searchText, activeFilter, approvedProviders, selectedLocation]);
 
   /* ---- Provider card width ---- */
   const getCardWidth = () => {
@@ -183,7 +213,7 @@ export default function CategoryScreen() {
       return {
         icon: "🔍",
         title: "No providers found",
-        description: "Try a different search term or clear filters.",
+        description: `No providers match "${searchText}". Try a different search term or clear filters.`,
         actionLabel: "Clear Search",
         onAction: () => setSearchText(""),
       };
@@ -198,9 +228,11 @@ export default function CategoryScreen() {
       };
     }
     return {
-      icon: "📋",
-      title: "No providers yet",
-      description: `No ${categoryTitle.toLowerCase()} providers are listed yet. Check back soon!`,
+      icon: categoryInfo.icon || "📋",
+      title: `No ${categoryTitle.toLowerCase()} providers yet`,
+      description: `No ${categoryTitle.toLowerCase()} providers are listed for ${selectedLocation.name} yet. Check back soon or select a different location!`,
+      actionLabel: "← Back to Services",
+      onAction: handleBackToServices,
     };
   };
 
@@ -230,10 +262,10 @@ export default function CategoryScreen() {
   return (
     <View style={s.page}>
       {/* ---- Sticky Header ---- */}
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top }]}>
         <View style={s.headerInner}>
           <Pressable
-            onPress={() => router.push("/services")}
+            onPress={handleBackToServices}
             style={({ pressed }) => [
               s.backBtn,
               { opacity: pressed ? 0.7 : 1 },
@@ -274,7 +306,7 @@ export default function CategoryScreen() {
               </Text>
               <Text style={s.catDesc}>{categoryInfo.description}</Text>
               <Text style={s.catCount}>
-                {categoryInfo.providerCount} providers available
+                {categoryInfo.providerCount} providers available • {selectedLocation.name}
               </Text>
             </View>
           </View>

@@ -10,14 +10,20 @@ interface ServiceCategoryCardProps {
   category: ServiceCategory;
   onPress: () => void;
   size?: "normal" | "compact";
+  width?: number | string;
+  height?: number;
 }
 
 export default function ServiceCategoryCard({
   category,
   onPress,
   size = "normal",
+  width: widthProp,
+  height: heightProp,
 }: ServiceCategoryCardProps) {
   const isCompact = size === "compact";
+  const cardWidth = widthProp ?? (isCompact ? 116 : 140);
+  const cardHeight = heightProp ?? (isCompact ? 116 : 124);
 
   return (
     <Pressable
@@ -26,49 +32,68 @@ export default function ServiceCategoryCard({
         s.card,
         {
           backgroundColor: category.bg,
-          borderColor: category.accent + "20",
-          width: isCompact ? 110 : 140,
-          height: isCompact ? 110 : 130,
-          transform: [{ scale: pressed ? 0.95 : 1 }],
+          borderColor: category.accent + "25",
+          width: cardWidth as any,
+          height: cardHeight,
+          transform: [{ scale: pressed ? 0.96 : 1 }],
         },
-        Platform.OS === "web" && hovered ? s.cardHovered : null,
+        Platform.OS === "web" && hovered ? (s.cardHovered as any) : null,
       ]}
       accessibilityRole="button"
       accessibilityLabel={`${category.title} — ${category.providerCount} providers`}
     >
-      {/* Decorative accent circle */}
+      {/* Decorative accent circle in top corner */}
       <View
         style={[
           s.accentCircle,
-          { backgroundColor: category.accent + "12" },
+          { backgroundColor: category.accent + "14" },
         ]}
       />
 
-      <View
-        style={[
-          s.iconWrap,
-          {
-            backgroundColor: WHITE,
-            borderColor: category.accent + "18",
-            width: isCompact ? 38 : 44,
-            height: isCompact ? 38 : 44,
-          },
-        ]}
-      >
-        <Text style={[s.icon, { fontSize: isCompact ? 18 : 22 }]}>
-          {category.icon}
-        </Text>
+      {/* Top row: Icon on left, Arrow on right */}
+      <View style={s.topRow}>
+        <View
+          style={[
+            s.iconWrap,
+            {
+              backgroundColor: WHITE,
+              borderColor: category.accent + "20",
+              width: isCompact ? 36 : 40,
+              height: isCompact ? 36 : 40,
+            },
+          ]}
+        >
+          <Text style={[s.icon, { fontSize: isCompact ? 18 : 20 }]}>
+            {category.icon}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            s.arrowCircle,
+            {
+              backgroundColor: category.accent + "15",
+              borderColor: category.accent + "25",
+            },
+          ]}
+        >
+          <Text style={[s.arrow, { color: category.accent }]}>→</Text>
+        </View>
       </View>
 
-      <Text
-        style={[s.title, { fontSize: isCompact ? 11 : 12.5 }]}
-        numberOfLines={2}
-      >
-        {category.title}
-      </Text>
-
-      <View style={[s.arrowCircle, { backgroundColor: category.accent + "12" }]}>
-        <Text style={[s.arrow, { color: category.accent }]}>→</Text>
+      {/* Bottom section: Category title */}
+      <View style={s.bottomContent}>
+        <Text
+          style={[
+            s.title,
+            {
+              fontSize: isCompact ? 11.5 : 12.5,
+            },
+          ]}
+          numberOfLines={2}
+        >
+          {category.title}
+        </Text>
       </View>
     </Pressable>
   );
@@ -77,58 +102,73 @@ export default function ServiceCategoryCard({
 const s = StyleSheet.create({
   card: {
     borderRadius: 18,
-    padding: 14,
+    padding: 12,
     borderWidth: 1.5,
     justifyContent: "space-between",
     overflow: "hidden",
+    position: "relative",
     ...(Platform.OS === "web"
-      ? {
-          boxShadow: "0 2px 12px rgba(0,0,0,0.03)",
+      ? ({
+          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
           transition: "transform 0.15s ease, box-shadow 0.2s ease",
-        } as any
-      : {}),
+          cursor: "pointer",
+        } as any)
+      : {
+          elevation: 1,
+        }),
   },
   cardHovered: {
     ...(Platform.OS === "web"
-      ? { boxShadow: "0 4px 20px rgba(0,0,0,0.08)" } as any
+      ? ({ boxShadow: "0 4px 16px rgba(0,0,0,0.08)" } as any)
       : {}),
   },
   accentCircle: {
     position: "absolute",
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    top: -25,
-    right: -25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    top: -18,
+    right: -18,
+  },
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    zIndex: 2,
   },
   iconWrap: {
-    borderRadius: 13,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
     ...(Platform.OS === "web"
-      ? { boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }
+      ? { boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }
       : {}),
   },
   icon: {},
-  title: {
-    fontWeight: "800",
-    color: SLATE_800,
-    marginTop: 8,
-    ...WEB_FONT,
-  },
   arrowCircle: {
-    position: "absolute",
-    bottom: 10,
-    right: 10,
     width: 24,
     height: 24,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 1,
   },
   arrow: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: "900",
+    lineHeight: 14,
+  },
+  bottomContent: {
+    justifyContent: "flex-end",
+    minHeight: 32,
+    zIndex: 2,
+  },
+  title: {
     fontWeight: "800",
+    color: SLATE_800,
+    lineHeight: 16,
+    letterSpacing: -0.2,
+    ...WEB_FONT,
   },
 });

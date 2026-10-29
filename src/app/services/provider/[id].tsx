@@ -1,5 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useState, useEffect, useMemo } from "react";
+import { useSafeBack } from "@/hooks/useSafeBack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   ActivityIndicator,
   Alert,
@@ -132,6 +134,8 @@ function businessDocToProvider(biz: BusinessDocument): ServiceProvider {
 /* ================================================================ */
 
 export default function ProviderDetailScreen() {
+  const insets = useSafeAreaInsets();
+  const goBackToServices = useSafeBack("/services");
   const { id } = useLocalSearchParams<{ id: string }>();
   const { width } = useWindowDimensions();
   const isMobile = isMobileWidth(width);
@@ -183,10 +187,10 @@ export default function ProviderDetailScreen() {
   if (!mockProvider && apiLoading) {
     return (
       <View style={s.page}>
-        <View style={s.header}>
+        <View style={[s.header, { paddingTop: insets.top }]}>
           <View style={s.headerInner}>
             <Pressable
-              onPress={() => router.back()}
+              onPress={goBackToServices}
               style={({ pressed }) => [
                 s.backBtn,
                 { opacity: pressed ? 0.7 : 1 },
@@ -212,10 +216,10 @@ export default function ProviderDetailScreen() {
   if (!provider) {
     return (
       <View style={s.page}>
-        <View style={s.header}>
+        <View style={[s.header, { paddingTop: insets.top }]}>
           <View style={s.headerInner}>
             <Pressable
-              onPress={() => router.back()}
+              onPress={goBackToServices}
               style={({ pressed }) => [
                 s.backBtn,
                 { opacity: pressed ? 0.7 : 1 },
@@ -400,10 +404,10 @@ export default function ProviderDetailScreen() {
   return (
     <View style={s.page}>
       {/* ---- Sticky Header ---- */}
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top }]}>
         <View style={s.headerInner}>
           <Pressable
-            onPress={() => router.back()}
+            onPress={goBackToServices}
             style={({ pressed }) => [
               s.backBtn,
               { opacity: pressed ? 0.7 : 1 },

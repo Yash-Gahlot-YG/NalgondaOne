@@ -33,6 +33,7 @@ export default function ProviderHeader({ provider }: ProviderHeaderProps) {
             style={s.img}
             contentFit="cover"
             priority="high"
+            cachePolicy="memory-disk"
             transition={200}
             onError={() => setImgError(true)}
             accessibilityLabel={`${provider.name} — demo photo`}
@@ -99,25 +100,7 @@ export default function ProviderHeader({ provider }: ProviderHeaderProps) {
           📍 {provider.address}
         </Text>
 
-        {/* Rating */}
-        <View style={s.ratingRow}>
-          <Text style={s.ratingStar}>⭐</Text>
-          {provider.isMockData ? (
-            <>
-              <Text style={s.ratingValue}>{provider.rating}</Text>
-              <Text style={s.ratingDot}>·</Text>
-              <Text style={s.reviewCount}>Demo Rating (Placeholder)</Text>
-            </>
-          ) : provider.reviewCount && provider.reviewCount > 0 ? (
-            <>
-              <Text style={s.ratingValue}>{provider.rating}</Text>
-              <Text style={s.ratingDot}>·</Text>
-              <Text style={s.reviewCount}>{provider.reviewCount} reviews</Text>
-            </>
-          ) : (
-            <Text style={s.reviewCount}>No reviews yet</Text>
-          )}
-        </View>
+        
 
         {/* Hours */}
         <View style={s.hoursRow}>
@@ -247,28 +230,7 @@ const s = StyleSheet.create({
     ...WEB_FONT,
   },
 
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    gap: 5,
-  },
-  ratingStar: { fontSize: 14 },
-  ratingValue: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: SLATE_900,
-    ...WEB_FONT,
-  },
-  ratingDot: {
-    fontSize: 14,
-    color: SLATE_500,
-  },
-  reviewCount: {
-    fontSize: 13,
-    color: SLATE_500,
-    ...WEB_FONT,
-  },
+
 
   hoursRow: {
     flexDirection: "row",
